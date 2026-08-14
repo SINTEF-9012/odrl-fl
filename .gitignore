@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+
+# Data and results
+data/
+results/
+*.log
+
+# Tooling
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+.mypy_cache/

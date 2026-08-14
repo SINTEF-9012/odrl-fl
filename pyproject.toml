@@ -1,0 +1,67 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "odrl-fl"
+version = "0.1.0"
+description = "Policy-carrying models: ODRL usage policies that compose through federated aggregation"
+license = { text = "Apache-2.0" }
+readme = "README.md"
+requires-python = ">=3.11"
+
+dependencies = [
+    "flwr[simulation]==1.33.0",
+    "torch",
+    "numpy",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "hypothesis>=6", "ruff"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["odrl_fl"]
+
+# --- Flower app ------------------------------------------------------------
+
+[tool.flwr.app]
+publisher = "sintef"
+
+[tool.flwr.app.components]
+serverapp = "odrl_fl.server_app:app"
+clientapp = "odrl_fl.client_app:app"
+
+[tool.flwr.app.config]
+num-server-rounds = 5
+local-epochs = 1
+fraction-train = 1.0
+min-nodes = 2
+# Data heterogeneity dial: small alpha => pathological label skew, large => IID.
+alpha = 1.0
+seed = 0
+
+
+# --- SuperLink connection --------------------------------------------------
+#
+# As of Flower 1.26 this is NOT configured here; it lives in the user-level
+# `~/.flwr/config.toml`. Running the Flower path needs one entry:
+#
+#     [superlink.odrl-local]
+#     address = "127.0.0.1:9093"
+#     insecure = true
+#
+# A *simulation* federation would be the natural choice for this project, but
+# Flower's simulation backend requires Ray, and Ray publishes no Windows wheels
+# for Python 3.13 -- so the deployment engine is the only Flower path on this
+# platform. Experiments therefore use `odrl_fl.fedavg` (in-process, no
+# transport); see its module docstring.
+
+# --- Tooling ---------------------------------------------------------------
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["slow: runs a full simulated federation (tens of seconds)"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
