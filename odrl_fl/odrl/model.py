@@ -37,7 +37,19 @@ over rules are the natural way to express intersection and union.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import date, datetime
 from enum import Enum
+
+
+def _is_iso8601(text: str) -> bool:
+    """Accepts both a full timestamp and a bare date."""
+    for parse in (datetime.fromisoformat, date.fromisoformat):
+        try:
+            parse(text)
+            return True
+        except ValueError:
+            continue
+    return False
 
 
 class ODRLError(Exception):
@@ -204,10 +216,17 @@ class Constraint:
                 f"not '{self.left_operand.value}'"
             )
 
-        if self.left_operand is LeftOperand.DATETIME and not isinstance(
-            self.right_operand, str
-        ):
-            raise MalformedPolicy("dateTime needs an ISO-8601 string")
+        if self.left_operand is LeftOperand.DATETIME:
+            if not isinstance(self.right_operand, str):
+                raise MalformedPolicy("dateTime needs an ISO-8601 string")
+            # Parseability is checked here rather than at composition time.
+            # Composition compares dates to find the tighter bound; a malformed
+            # one should fail where it was written, not deep inside a fold over
+            # a dozen policies.
+            if not _is_iso8601(self.right_operand):
+                raise MalformedPolicy(
+                    f"dateTime '{self.right_operand}' is not ISO-8601"
+                )
         if self.left_operand is LeftOperand.DP_EPSILON and not isinstance(
             self.right_operand, (int, float)
         ):
@@ -292,6 +311,11 @@ class Policy:
     permissions: frozenset[Permission] = field(default_factory=frozenset)
     prohibitions: frozenset[Prohibition] = field(default_factory=frozenset)
     obligations: frozenset[Duty] = field(default_factory=frozenset)
+    #: uids of the policies this one was derived from, serialised as ODRL's
+    #: `inheritFrom`. Empty for an Offer; populated on an Agreement produced by
+    #: composition, which is what makes the derived model's policy traceable
+    #: back to the contributors who constrained it.
+    derived_from: frozenset[str] = field(default_factory=frozenset)
 
     @property
     def permitted_actions(self) -> frozenset[Action]:

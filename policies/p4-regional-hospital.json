@@ -8,22 +8,46 @@
     {
       "action": "use",
       "constraint": [
-        { "leftOperand": "purpose", "operator": "eq", "rightOperand": "research" },
-        { "leftOperand": "spatial", "operator": "eq", "rightOperand": "EU" }
+        {
+          "leftOperand": "purpose",
+          "operator": "eq",
+          "rightOperand": "research"
+        },
+        {
+          "leftOperand": "spatial",
+          "operator": "eq",
+          "rightOperand": "DE"
+        }
       ]
     },
     {
       "action": "aggregate",
       "constraint": [
-        { "leftOperand": "purpose", "operator": "eq", "rightOperand": "research" },
-        { "leftOperand": "spatial", "operator": "eq", "rightOperand": "EU" }
+        {
+          "leftOperand": "purpose",
+          "operator": "eq",
+          "rightOperand": "research"
+        },
+        {
+          "leftOperand": "spatial",
+          "operator": "eq",
+          "rightOperand": "DE"
+        }
       ]
     },
     {
       "action": "distribute",
       "constraint": [
-        { "leftOperand": "purpose", "operator": "eq", "rightOperand": "research" },
-        { "leftOperand": "spatial", "operator": "eq", "rightOperand": "EU" }
+        {
+          "leftOperand": "purpose",
+          "operator": "eq",
+          "rightOperand": "research"
+        },
+        {
+          "leftOperand": "spatial",
+          "operator": "eq",
+          "rightOperand": "DE"
+        }
       ]
     }
   ]

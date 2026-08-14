@@ -37,6 +37,56 @@ Two consequences:
   Anti-monotonicity also gives Apriori-style pruning: if a subset already lacks
   a required capability, every superset lacks it too.
 
+## The algebra, and what it already shows
+
+```bash
+python experiments/compose_demo.py
+```
+
+Composing every subset of the five example contributor policies:
+
+```
+Mean capability by federation size:
+  1 contributor(s)  3.00  ##################
+  2 contributor(s)  2.30  ##############
+  3 contributor(s)  1.80  ###########
+  4 contributor(s)  1.40  ########
+  5 contributor(s)  1.00  ######
+```
+
+Note `p3`, the national registry: it holds the most valuable data and grants
+only `aggregate`, so **any** subset containing it collapses to that alone — the
+federation could not even run inference with the resulting model.
+
+Composition rules, all pushing the same direction:
+
+| Element | Rule |
+|---|---|
+| Permissions | intersect — an action needs everyone's grant |
+| Prohibitions | union — any single prohibition binds the derivative |
+| Duties | union, merged per action — the strictest wins |
+| Constraints | conjoin — set meet, or interval intersection |
+| Conflict | deny overrides |
+
+Capability is lost three distinct ways, and `CompositionResult.lost` separates
+them so increment 4 can ablate their contributions: somebody withheld the
+grant, somebody prohibited it, or the grantors' constraints have no common
+ground.
+
+### Subsumption is load-bearing, not decorative
+
+`spatial isAnyOf {EU}` and `spatial isAnyOf {DE}` are compatible — Germany is in
+the EU — and their meet is `{DE}`. Under a flat vocabulary they read as a
+conflict and the capability is lost. Compare:
+
+```bash
+python experiments/compose_demo.py --flat
+```
+
+`p1+p4` keeps `use` with the taxonomy and loses it without. Measured erosion
+would otherwise be partly an artifact of omitting the hierarchy rather than a
+property of the policies, which would undermine increment 4's headline result.
+
 ## Increment roadmap
 
 Ordered by **risk of invalidation**, not by build order — the expensive parts
@@ -45,8 +95,8 @@ sit behind cheap gates. Increments 0–5 involve no federated learning at all.
 | # | Increment | Status |
 |---|---|---|
 | 0 | Vanilla Flower baseline | **done** |
-| 1 | ODRL data model + JSON-LD subset parser | |
-| 2 | Composition algebra + property tests for anti-monotonicity | |
+| 1 | ODRL data model + JSON-LD subset parser | **done** |
+| 2 | Composition algebra + property tests for anti-monotonicity | **done** |
 | 3 | GA4GH **DUO** → ODRL mapping, policy corpus | |
 | 4 | **Permission-erosion study** ← first result, **go/no-go** | |
 | 5 | Selection with Apriori pruning; utility proxy | |

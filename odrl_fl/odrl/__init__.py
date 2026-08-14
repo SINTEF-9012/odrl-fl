@@ -7,6 +7,16 @@ being ignored, because a silently dropped constraint yields a composed
 capability nobody granted.
 """
 
+from odrl_fl.odrl.composition import (
+    CompositionResult,
+    LossReason,
+    Unsatisfiable,
+    capability,
+    compose,
+    conjoin,
+    merge_duties,
+    satisfies,
+)
 from odrl_fl.odrl.model import (
     SELF_REFERENTIAL_OPERANDS,
     SET_VALUED,
@@ -31,15 +41,19 @@ from odrl_fl.odrl.parser import (
     parse_policy,
     policy_to_jsonld,
 )
+from odrl_fl.odrl.taxonomy import FLAT, Taxonomy, default_taxonomy
 
 __all__ = [
+    "FLAT",
     "SELF_REFERENTIAL_OPERANDS",
     "SET_VALUED",
     "STATEFUL_OPERANDS",
     "Action",
+    "CompositionResult",
     "Constraint",
     "Duty",
     "LeftOperand",
+    "LossReason",
     "MalformedPolicy",
     "ODRLError",
     "Operator",
@@ -47,10 +61,18 @@ __all__ = [
     "Policy",
     "PolicyType",
     "Prohibition",
+    "Taxonomy",
+    "Unsatisfiable",
     "UnsupportedConstruct",
+    "capability",
+    "compose",
+    "conjoin",
+    "default_taxonomy",
     "load_policies",
     "load_policy",
+    "merge_duties",
     "parse_constraint",
     "parse_policy",
     "policy_to_jsonld",
+    "satisfies",
 ]

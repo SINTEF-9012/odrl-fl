@@ -1,0 +1,36 @@
+{
+  "_comment": [
+    "Subsumption hierarchies per constraint operand. A term maps to the list of",
+    "terms it is BROADER than: 'research' subsumes 'clinical-research'.",
+    "",
+    "Without these, composing 'spatial isAnyOf {EU}' with 'spatial isAnyOf {DE}'",
+    "yields the empty set and two entirely compatible policies read as a",
+    "conflict -- which would overstate capability erosion and make the headline",
+    "result an artifact of the model rather than a finding.",
+    "",
+    "Increment 3 extends this with the GA4GH Data Use Ontology hierarchy",
+    "(HMB subsumes the disease-specific DS-* codes)."
+  ],
+
+  "purpose": {
+    "any-purpose": ["research", "commercial", "education"],
+    "research": [
+      "clinical-research",
+      "methods-research",
+      "academic-research",
+      "biomedical-research"
+    ],
+    "biomedical-research": ["disease-specific-research"],
+    "commercial": ["product-development", "marketing"]
+  },
+
+  "spatial": {
+    "world": ["EU", "US", "UK", "CH", "NO"],
+    "EU": ["DE", "FR", "NL", "IT", "ES", "SE", "DK", "FI", "BE", "AT", "IE", "PL"]
+  },
+
+  "recipient": {
+    "any-recipient": ["consortium", "public", "third-party"],
+    "consortium": ["consortium-member"]
+  }
+}

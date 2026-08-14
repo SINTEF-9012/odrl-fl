@@ -205,6 +205,9 @@ def parse_policy(doc: dict[str, Any] | str) -> Policy:
         permissions=permissions,
         prohibitions=prohibitions,
         obligations=obligations,
+        # `inheritFrom` is ODRL's own term for a policy derived from others,
+        # which is exactly what composition produces.
+        derived_from=frozenset(str(v) for v in _as_list(doc.get("inheritFrom"))),
     )
 
 
@@ -250,6 +253,8 @@ def policy_to_jsonld(policy: Policy) -> dict[str, Any]:
         value = getattr(policy, key)
         if value:
             doc[key] = value
+    if policy.derived_from:
+        doc["inheritFrom"] = sorted(policy.derived_from)
 
     if policy.permissions:
         doc["permission"] = [_rule_to_jsonld(p) for p in sorted(policy.permissions)]
