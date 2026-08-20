@@ -1,0 +1,375 @@
+{
+  "_provenance": {
+    "vocabulary": "GA4GH Data Use Ontology (DUO)",
+    "source": "https://raw.githubusercontent.com/EBISPOT/DUO/master/duo.csv",
+    "note": "Every code observed in EGA's public policy metadata is classified here. Three of them (DUO:0000005 GRU-CC, DUO:0000014 RU, DUO:0000010) are obsolete terms absent from the current ontology but still in active use by annotators. Codes restricting orthogonal dimensions (US, IS, PS) map to distinct operands rather than sharing one: several codes on the same operand are unioned into a disjunction, which would grant more than was offered.",
+    "classes": {
+      "permission": "sets the purpose the data may serve",
+      "restriction": "a constraint or prohibition the algebra folds directly",
+      "externally-adjudicated": "composes syntactically; its truth is decided out of band",
+      "duty": "becomes an obligation rather than a restriction",
+      "out-of-fragment": "cannot be expressed in the supported ODRL subset",
+      "structural": "an ontology category rather than a usable condition",
+      "deprecated": "obsolete term still found in real annotations"
+    }
+  },
+  "codes": {
+    "DUO:0000004": {
+      "shorthand": "NRES",
+      "label": "no restriction",
+      "description": "This data use permission indicates there is no restriction on use.",
+      "class": "permission",
+      "fidelity": "exact",
+      "odrl": {
+        "kind": "purpose",
+        "values": [
+          "any-purpose"
+        ]
+      }
+    },
+    "DUO:0000042": {
+      "shorthand": "GRU",
+      "label": "general research use",
+      "description": "This data use permission indicates that use is allowed for general research use for any research purpose.",
+      "class": "permission",
+      "fidelity": "exact",
+      "odrl": {
+        "kind": "purpose",
+        "values": [
+          "research"
+        ]
+      }
+    },
+    "DUO:0000006": {
+      "shorthand": "HMB",
+      "label": "health or medical or biomedical research",
+      "description": "This data use permission indicates that use is allowed for health/medical/biomedical purposes; does not include the study of population origins or ancestry.",
+      "class": "permission",
+      "fidelity": "exact",
+      "odrl": {
+        "kind": "purpose",
+        "values": [
+          "biomedical-research"
+        ]
+      }
+    },
+    "DUO:0000007": {
+      "shorthand": "DS",
+      "label": "disease specific research",
+      "description": "This data use permission indicates that use is allowed provided it is related to the specified disease.",
+      "class": "permission",
+      "fidelity": "exact",
+      "odrl": {
+        "kind": "purpose",
+        "values": [
+          "disease-specific-research"
+        ]
+      }
+    },
+    "DUO:0000011": {
+      "shorthand": "POA",
+      "label": "population origins or ancestry research only",
+      "description": "This data use permission indicates that use of the data is limited to the study of population origins or ancestry.",
+      "class": "permission",
+      "fidelity": "exact",
+      "odrl": {
+        "kind": "purpose",
+        "values": [
+          "population-origins-research"
+        ]
+      }
+    },
+    "DUO:0000016": {
+      "shorthand": "GSO",
+      "label": "genetic studies only",
+      "description": "This data use modifier indicates that use is limited to genetic studies only (i.e., studies that include genotype research alone or both genotype and phenotype research, but not phenotype research exclusively)",
+      "class": "permission",
+      "fidelity": "exact",
+      "odrl": {
+        "kind": "purpose",
+        "values": [
+          "genetic-studies"
+        ]
+      }
+    },
+    "DUO:0000043": {
+      "shorthand": "CC",
+      "label": "clinical care use",
+      "description": "This data use modifier indicates that use is allowed for clinical use and care.",
+      "class": "permission",
+      "fidelity": "exact",
+      "odrl": {
+        "kind": "purpose",
+        "values": [
+          "clinical-care"
+        ]
+      }
+    },
+    "DUO:0000012": {
+      "shorthand": "RS",
+      "label": "research specific restrictions",
+      "description": "This data use modifier indicates that use is limited to studies of a certain research type.",
+      "class": "permission",
+      "fidelity": "interpretive",
+      "odrl": {
+        "kind": "purpose",
+        "values": [
+          "research-specific"
+        ]
+      }
+    },
+    "DUO:0000045": {
+      "shorthand": "NPU",
+      "label": "not for profit organisation use only",
+      "description": "This data use modifier indicates that use of the data is limited to not-for-profit organizations.",
+      "class": "restriction",
+      "fidelity": "exact",
+      "odrl": {
+        "kind": "constraint",
+        "operand": "organisation",
+        "values": [
+          "not-for-profit"
+        ]
+      }
+    },
+    "DUO:0000046": {
+      "shorthand": "NCU",
+      "label": "non-commercial use only",
+      "description": "This data use modifier indicates that use of the data is limited to not-for-profit use.",
+      "class": "restriction",
+      "fidelity": "exact",
+      "odrl": {
+        "kind": "purpose_exclude",
+        "values": [
+          "commercial"
+        ]
+      }
+    },
+    "DUO:0000018": {
+      "shorthand": "NPUNCU",
+      "label": "not for profit, non commercial use only",
+      "description": "This data use modifier indicates that use of the data is limited to not-for-profit organizations and not-for-profit use, non-commercial use.",
+      "class": "restriction",
+      "fidelity": "exact",
+      "odrl": {
+        "kind": "constraint_and_exclude",
+        "operand": "organisation",
+        "values": [
+          "not-for-profit"
+        ],
+        "exclude": [
+          "commercial"
+        ]
+      }
+    },
+    "DUO:0000022": {
+      "shorthand": "GS",
+      "label": "geographical restriction",
+      "description": "This data use modifier indicates that use is limited to within a specific geographic region.",
+      "class": "restriction",
+      "fidelity": "exact",
+      "odrl": {
+        "kind": "spatial",
+        "param": "region"
+      }
+    },
+    "DUO:0000025": {
+      "shorthand": "TS",
+      "label": "time limit on use",
+      "description": "This data use modifier indicates that use is approved for a specific number of months.",
+      "class": "restriction",
+      "fidelity": "exact",
+      "odrl": {
+        "kind": "until",
+        "param": "expiry"
+      }
+    },
+    "DUO:0000024": {
+      "shorthand": "MOR",
+      "label": "publication moratorium",
+      "description": "This data use modifier indicates that requestor agrees not to publish results of studies until a specific date.",
+      "class": "restriction",
+      "fidelity": "exact",
+      "odrl": {
+        "kind": "moratorium",
+        "param": "moratorium_until"
+      }
+    },
+    "DUO:0000015": {
+      "shorthand": "NMDS",
+      "label": "no general methods research",
+      "description": "This data use modifier indicates that use does not allow methods development research (e.g., development of software or algorithms).",
+      "class": "restriction",
+      "fidelity": "exact",
+      "odrl": {
+        "kind": "prohibit",
+        "action": "derive",
+        "purpose": [
+          "methods-research"
+        ]
+      }
+    },
+    "DUO:0000044": {
+      "shorthand": "NPOA",
+      "label": "population origins or ancestry research prohibited",
+      "description": "This data use modifier indicates use for purposes of population, origin, or ancestry research is prohibited.",
+      "class": "restriction",
+      "fidelity": "exact",
+      "odrl": {
+        "kind": "prohibit",
+        "action": "use",
+        "purpose": [
+          "population-origins-research"
+        ]
+      }
+    },
+    "DUO:0000021": {
+      "shorthand": "IRB",
+      "label": "ethics approval required",
+      "description": "This data use modifier indicates that the requestor must provide documentation of local IRB/ERB approval.",
+      "class": "externally-adjudicated",
+      "fidelity": "interpretive",
+      "odrl": {
+        "kind": "pre_duty",
+        "action": "obtainConsent"
+      }
+    },
+    "DUO:0000026": {
+      "shorthand": "US",
+      "label": "user specific restriction",
+      "description": "This data use modifier indicates that use is limited to use by approved users.",
+      "class": "externally-adjudicated",
+      "fidelity": "interpretive",
+      "odrl": {
+        "kind": "constraint",
+        "operand": "recipient",
+        "values": [
+          "approved-user"
+        ]
+      }
+    },
+    "DUO:0000027": {
+      "shorthand": "PS",
+      "label": "project specific restriction",
+      "description": "This data use modifier indicates that use is limited to use within an approved project.",
+      "class": "externally-adjudicated",
+      "fidelity": "interpretive",
+      "odrl": {
+        "kind": "constraint",
+        "operand": "project",
+        "values": [
+          "approved-project"
+        ]
+      }
+    },
+    "DUO:0000028": {
+      "shorthand": "IS",
+      "label": "institution specific restriction",
+      "description": "This data use modifier indicates that use is limited to use within an approved institution.",
+      "class": "externally-adjudicated",
+      "fidelity": "interpretive",
+      "odrl": {
+        "kind": "constraint",
+        "operand": "institution",
+        "values": [
+          "approved-institution"
+        ]
+      }
+    },
+    "DUO:0000019": {
+      "shorthand": "PUB",
+      "label": "publication required",
+      "description": "This data use modifier indicates that requestor agrees to make results of studies using the data available to the larger scientific community.",
+      "class": "duty",
+      "fidelity": "interpretive",
+      "odrl": {
+        "kind": "duty",
+        "action": "inform"
+      }
+    },
+    "DUO:0000029": {
+      "shorthand": "RTN",
+      "label": "return to database or resource",
+      "description": "This data use modifier indicates that the requestor must return derived/enriched data to the database/resource.",
+      "class": "duty",
+      "fidelity": "interpretive",
+      "odrl": {
+        "kind": "duty",
+        "action": "transfer"
+      }
+    },
+    "DUO:0000020": {
+      "shorthand": "COL",
+      "label": "collaboration required",
+      "description": "This data use modifier indicates that the requestor must agree to collaboration with the primary study investigator(s).",
+      "class": "out-of-fragment",
+      "fidelity": "n/a",
+      "odrl": {
+        "kind": "unsupported",
+        "reason": "requires the primary investigator to be a participant, so satisfaction depends on the very contributor set being composed -- self-referential, the class excluded in increment 1"
+      }
+    },
+    "DUO:0000001": {
+      "shorthand": "-",
+      "label": "data use permission",
+      "description": "A data item that is used to indicate consent permissions for datasets and/or materials, and relates to the purposes for which datasets and/or material might be removed, stored or used.",
+      "class": "structural",
+      "fidelity": "n/a",
+      "odrl": {
+        "kind": "none",
+        "reason": "the 'data use permission' parent class; annotators sometimes pick the category rather than a leaf term"
+      }
+    },
+    "DUO:0000017": {
+      "shorthand": "-",
+      "label": "data use modifier",
+      "description": "Data use modifiers indicate additional conditions for use.",
+      "class": "structural",
+      "fidelity": "n/a",
+      "odrl": {
+        "kind": "none",
+        "reason": "the 'data use modifier' parent class"
+      }
+    },
+    "DUO:0000005": {
+      "shorthand": "GRU-CC",
+      "label": "obsolete or unresolved term",
+      "description": "",
+      "class": "deprecated",
+      "fidelity": "interpretive",
+      "odrl": {
+        "kind": "purpose",
+        "values": [
+          "research",
+          "clinical-care"
+        ],
+        "reason": "obsolete; the ontology records it as split into GRU (DUO:0000042) and CC (DUO:0000043), so it maps to the union of both"
+      }
+    },
+    "DUO:0000014": {
+      "shorthand": "RU",
+      "label": "obsolete or unresolved term",
+      "description": "",
+      "class": "deprecated",
+      "fidelity": "interpretive",
+      "odrl": {
+        "kind": "purpose",
+        "values": [
+          "research"
+        ],
+        "reason": "obsolete 'research use only'; deprecated when GRU-CC was split. Treated as equivalent to GRU"
+      }
+    },
+    "DUO:0000010": {
+      "shorthand": "?",
+      "label": "obsolete or unresolved term",
+      "description": "",
+      "class": "deprecated",
+      "fidelity": "n/a",
+      "odrl": {
+        "kind": "none",
+        "reason": "obsolete and no longer resolvable in the ontology or OLS; ignored"
+      }
+    }
+  }
+}

@@ -87,6 +87,65 @@ python experiments/compose_demo.py --flat
 would otherwise be partly an artifact of omitting the hierarchy rather than a
 property of the policies, which would undermine increment 4's headline result.
 
+## Grounding: GA4GH Data Use Ontology
+
+```bash
+python experiments/corpus_demo.py
+```
+
+The corpus is not invented. Code sets are sampled from **real data use
+conditions** published on EGA policy records, fetched once and committed to
+`vocab/duo_frequencies.json` with provenance:
+
+```
+404 of 3000 policies carry DUO codes -- 13.5% adoption
+```
+
+That number is a finding, not an inconvenience: structured, machine-readable
+data use conditions are the exception in practice. So is the fact that
+`DUO:0000005` (GRU-CC) and `DUO:0000014` (RU) account for 132 code occurrences
+despite having been **retired from the ontology** — real governance metadata
+drifts from the standard, and a tool that meets real data has to decide what to
+do with obsolete terms.
+
+Erosion over a corpus of 40 DUO-derived contributors:
+
+```
+  size  mean capability  retains any
+     1             4.00        100%
+     5             3.65         91%
+    10             2.45         61%
+    20             1.30         32%
+    40             0.00          0%
+```
+
+Measured over *sampled* subsets rather than a prefix: individual subsets are
+bimodal, since a single incompatible contributor collapses a whole subset to
+nothing.
+
+### Not every DUO code fits, and that is part of the result
+
+`vocab/duo.json` classifies all 28 observed codes:
+
+| Class | n | Meaning |
+|---|---|---|
+| `permission` | 8 | sets the purpose the data may serve (GRU, HMB, DS) |
+| `restriction` | 8 | a constraint or prohibition the algebra folds (NCU, GS, TS, NMDS) |
+| `externally-adjudicated` | 4 | composes syntactically; an authority decides its truth out of band (IRB, US, PS, IS) |
+| `deprecated` | 3 | obsolete, still present in real annotations |
+| `duty` | 2 | an obligation rather than a restriction (PUB, RTN) |
+| `structural` | 2 | an ontology category, not a usable condition |
+| `out-of-fragment` | 1 | **COL** — cannot be expressed at all |
+
+**COL is the interesting one.** "Collaboration required" means the data
+provider must be a participant, so its satisfaction depends on the very
+contributor set being composed. That is self-referential — precisely the class
+the fragment excludes. A widely-used standard containing a construct the
+algebra cannot take is worth reporting rather than hiding.
+
+Every code carries a `fidelity` field (`exact` or `interpretive`), so the
+places where DUO and ODRL do not line up cleanly are visible.
+
 ## Increment roadmap
 
 Ordered by **risk of invalidation**, not by build order — the expensive parts
@@ -97,7 +156,7 @@ sit behind cheap gates. Increments 0–5 involve no federated learning at all.
 | 0 | Vanilla Flower baseline | **done** |
 | 1 | ODRL data model + JSON-LD subset parser | **done** |
 | 2 | Composition algebra + property tests for anti-monotonicity | **done** |
-| 3 | GA4GH **DUO** → ODRL mapping, policy corpus | |
+| 3 | GA4GH **DUO** → ODRL mapping, policy corpus | **done** |
 | 4 | **Permission-erosion study** ← first result, **go/no-go** | |
 | 5 | Selection with Apriori pruning; utility proxy | |
 | 6 | Policy-aware `Strategy`; selection at `start()` | |

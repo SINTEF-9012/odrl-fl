@@ -9,28 +9,67 @@
     "result an artifact of the model rather than a finding.",
     "",
     "Increment 3 extends this with the GA4GH Data Use Ontology hierarchy",
-    "(HMB subsumes the disease-specific DS-* codes)."
+    "(HMB subsumes the disease-specific DS-* codes).",
+    "The purpose hierarchy below encodes DUO's own ordering of data use permissions: GRU is broader than HMB, which is broader than DS. GA4GH's matching guidance states the direction explicitly -- a query for lung cancer research WILL retrieve datasets consented for cancer -- which is exactly the subsumption Taxonomy.meet implements."
   ],
-
   "purpose": {
-    "any-purpose": ["research", "commercial", "education"],
+    "any-purpose": [
+      "research",
+      "commercial",
+      "education",
+      "clinical-care"
+    ],
     "research": [
       "clinical-research",
       "methods-research",
       "academic-research",
-      "biomedical-research"
+      "biomedical-research",
+      "genetic-studies",
+      "population-origins-research",
+      "research-specific"
     ],
-    "biomedical-research": ["disease-specific-research"],
-    "commercial": ["product-development", "marketing"]
+    "biomedical-research": [
+      "disease-specific-research"
+    ],
+    "commercial": [
+      "product-development",
+      "marketing"
+    ]
   },
-
   "spatial": {
-    "world": ["EU", "US", "UK", "CH", "NO"],
-    "EU": ["DE", "FR", "NL", "IT", "ES", "SE", "DK", "FI", "BE", "AT", "IE", "PL"]
+    "world": [
+      "EU",
+      "US",
+      "UK",
+      "CH",
+      "NO"
+    ],
+    "EU": [
+      "DE",
+      "FR",
+      "NL",
+      "IT",
+      "ES",
+      "SE",
+      "DK",
+      "FI",
+      "BE",
+      "AT",
+      "IE",
+      "PL"
+    ]
   },
-
   "recipient": {
-    "any-recipient": ["consortium", "public", "third-party"],
-    "consortium": ["consortium-member"]
+    "any-recipient": [
+      "consortium",
+      "public",
+      "third-party",
+      "not-for-profit",
+      "approved-user",
+      "approved-institution"
+    ],
+    "consortium": [
+      "consortium-member"
+    ]
   }
 }

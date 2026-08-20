@@ -103,6 +103,8 @@ class Action(str, Enum):
     #: data sharing: credit the source, report back, pay, protect, dispose.
     ANONYMIZE = "anonymize"
     ATTRIBUTE = "attribute"
+    #: Stands in for "ethics approval obtained" when mapping DUO's IRB code.
+    OBTAIN_CONSENT = "obtainConsent"
     INFORM = "inform"
     COMPENSATE = "compensate"
     DELETE = "delete"
@@ -115,10 +117,31 @@ class LeftOperand(str, Enum):
     SPATIAL = "spatial"
     RECIPIENT = "recipient"
     DATETIME = "dateTime"
-    #: Profile extension, not ODRL core. Carries the privacy budget for an
-    #: `anonymize` duty ("you may use my data if you apply DP with eps <= 1"),
-    #: which is the most common quantified obligation in medical data sharing.
+    #: Profile extensions, not ODRL core.
+    #:
+    #: `dpEpsilon` carries the privacy budget for an `anonymize` duty ("you may
+    #: use my data if you apply DP with eps <= 1"), the most common quantified
+    #: obligation in medical data sharing.
+    #:
+    #: `institution`, `project` and `organisation` exist because DUO restricts
+    #: dimensions ODRL core has no operand for, and because ODRL's constraint
+    #: model gives one value *set* per operand with disjunctive `isAnyOf`
+    #: semantics. Conjunctive predicates over the same entity therefore cannot
+    #: share an operand:
+    #:
+    #:   - unioned within one policy they become a disjunction, so "research,
+    #:     within an approved project" weakens to "research OR approved project";
+    #:   - intersected across policies they collide, so one contributor
+    #:     requiring an approved user and another requiring a not-for-profit
+    #:     recipient would read as an irreconcilable conflict rather than two
+    #:     conditions that are jointly satisfiable.
+    #:
+    #: Mapping a real vocabulary onto ODRL surfaces this: each independent
+    #: predicate needs its own operand.
     DP_EPSILON = "dpEpsilon"
+    INSTITUTION = "institution"
+    PROJECT = "project"
+    ORGANISATION = "organisation"
 
 
 class Operator(str, Enum):
@@ -156,7 +179,14 @@ SELF_REFERENTIAL_OPERANDS = frozenset({"cohortSize", "recipientCount", "partyCou
 #: Left operands whose values form a *set*, composed by intersection. The rest
 #: (`dateTime`, `dpEpsilon`) are scalars ordered by comparison operators.
 SET_VALUED = frozenset(
-    {LeftOperand.PURPOSE, LeftOperand.SPATIAL, LeftOperand.RECIPIENT}
+    {
+        LeftOperand.PURPOSE,
+        LeftOperand.SPATIAL,
+        LeftOperand.RECIPIENT,
+        LeftOperand.INSTITUTION,
+        LeftOperand.PROJECT,
+        LeftOperand.ORGANISATION,
+    }
 )
 
 
