@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import json
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -83,15 +83,26 @@ def modal_combination() -> tuple[str, ...]:
     return combinations()[0][0]
 
 
-def sample_codes(rng: np.random.Generator, heterogeneity: float) -> tuple[str, ...]:
+def sample_codes(
+    rng: np.random.Generator,
+    heterogeneity: float,
+    sampler: Callable[[np.random.Generator], tuple[str, ...]] | None = None,
+) -> tuple[str, ...]:
     """Draw one contributor's code set.
 
     With probability `1 - heterogeneity` the modal set is used, which is what
-    makes the low end of the dial homogeneous; otherwise a set is drawn in
-    proportion to how often it occurs in the source data.
+    makes the low end of the dial homogeneous; otherwise `sampler` draws a set.
+
+    The two dials are orthogonal on purpose. `heterogeneity` controls *how much*
+    contributors differ; the assignment model controls *how* the differing ones
+    are drawn, which is the sampling assumption the sensitivity analysis
+    stresses.
     """
     if heterogeneity <= 0.0 or rng.random() >= heterogeneity:
         return modal_combination()
+
+    if sampler is not None:
+        return sampler(rng)
 
     observed = combinations()
     weights = np.array([count for _, count in observed], dtype=float)
@@ -105,16 +116,28 @@ def generate_corpus(
     heterogeneity: float = 1.0,
     seed: int = 0,
     actions: Sequence[Any] = DEFAULT_ACTIONS,
+    assignment: str = "empirical",
 ) -> list[Contributor]:
     """Generate `n` contributor policies.
 
     Fully determined by `seed`. The erosion study compares subsets of this
     corpus, so it cannot shift underneath the comparison.
+
+    `assignment` selects how code sets are drawn -- see `odrl_fl.assignment`.
+    The default reproduces the baseline; the alternatives exist so the erosion
+    result can be shown to survive, or not, a different sampling assumption.
     """
     if n < 1:
         raise ValueError("a corpus needs at least one contributor")
     if not 0.0 <= heterogeneity <= 1.0:
         raise ValueError("heterogeneity must be in [0, 1]")
+
+    from odrl_fl.assignment import build_sampler
+
+    # Corpus-level state: `clustered` and `purpose-matched` need a shared
+    # archetype, which must be drawn once for the corpus rather than per
+    # contributor.
+    sampler = build_sampler(assignment, np.random.default_rng([seed, 0xA551]))
 
     contributors: list[Contributor] = []
     for index in range(n):
@@ -122,7 +145,7 @@ def generate_corpus(
         # the corpus has 10 members or 200 -- the same property the data
         # partitions have, and for the same reason.
         rng = np.random.default_rng([seed, index])
-        codes = sample_codes(rng, heterogeneity)
+        codes = sample_codes(rng, heterogeneity, sampler)
         params = {
             "region": REGIONS[int(rng.integers(len(REGIONS)))],
             "expiry": EXPIRIES[int(rng.integers(len(EXPIRIES)))],

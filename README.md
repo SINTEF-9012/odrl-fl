@@ -206,6 +206,44 @@ what DUO licenses — gives 59% drop and 41% retention against 55% and 45%, with
 the same attribution. The conclusions do not rest on the `DEFAULT_ACTIONS`
 assumption.
 
+### How much does this depend on *who holds which policy*?
+
+```bash
+python experiments/run_sensitivity.py
+```
+
+The main threat to validity. EGA supplies real code frequencies and real
+co-occurrence, but nothing about which institution holds which conditions, so
+the corpus must assume something. Seven assignment models, same curve:
+
+| assignment model | drop at 10 | retains any | effect |
+|---|---|---|---|
+| uniform | 76% | 24% | large |
+| **empirical** (baseline) | 64% | 36% | large |
+| clustered-0.3 | 49% | 51% | moderate |
+| **purpose-matched** | 42% | 58% | moderate |
+| marginal | 32% | 68% | small |
+| clustered-0.6 | 17% | 83% | small |
+| clustered-0.9 | 5% | 95% | small |
+
+**Erosion occurs under every model — the direction is robust. The magnitude is
+not**, ranging from 5% to 76%. Stated plainly: had `clustered-0.6` been chosen
+as the baseline, the pre-registered go/no-go criterion would not have been met.
+Any figure quoted in the paper must name its assignment model.
+
+Cohesion is what drives it. Erosion decays smoothly as consortium members come
+to resemble one another and largely disappears once most are alike — which is
+the honest answer to "but real consortia are thematically coherent."
+
+**The load-bearing row is `purpose-matched`.** A consortium that has *already*
+self-selected for compatible research purposes still loses 42% of its
+capability, because **compatibility is not transitive**: two members can each be
+compatible with the anchor and incompatible with one another
+(`research ⊓ ds-cancer` and `research ⊓ ds-neurological` are both fine;
+`ds-cancer ⊓ ds-neurological` is empty). Self-selection is necessary but not
+sufficient — which is precisely the argument for selecting explicitly, and why
+selection is a set-level search rather than a filter.
+
 ## Increment roadmap
 
 Ordered by **risk of invalidation**, not by build order — the expensive parts

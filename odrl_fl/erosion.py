@@ -292,6 +292,7 @@ def run_study(
     draws: int = 60,
     actions: Sequence[Action] | None = None,
     taxonomy: Taxonomy | None = None,
+    assignment: str = "empirical",
 ) -> list[Summary]:
     """Sweep federation size against policy heterogeneity.
 
@@ -307,7 +308,11 @@ def run_study(
         pooled: dict[int, list[Measurement]] = {size: [] for size in sizes}
         for seed in corpus_seeds:
             corpus = generate_corpus(
-                pool_size, heterogeneity=heterogeneity, seed=seed, actions=action_set
+                pool_size,
+                heterogeneity=heterogeneity,
+                seed=seed,
+                actions=action_set,
+                assignment=assignment,
             )
             rng = np.random.default_rng([seed, 0xE205])
             for size in sizes:
