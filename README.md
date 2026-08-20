@@ -11,7 +11,9 @@ aggregation is the primitive.
 This project defines that composition, and builds the machinery to enforce it
 inside a federated training run.
 
-> Status: **increment 0** — vanilla Flower baseline. No ODRL yet.
+> Status: **increment 3**. The algebra and its anti-monotonicity property are
+> built and checked; the policy corpus is grounded in real GA4GH DUO
+> annotations. Increment 4 measures erosion properly and is the go/no-go.
 
 ## The core claim
 
