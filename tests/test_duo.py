@@ -30,6 +30,7 @@ VOCAB = Path(__file__).resolve().parent.parent / "vocab"
 #: Handled by `translate`. A mapping using anything else would fall through.
 KNOWN_KINDS = {
     "purpose",
+    "purpose_param",
     "purpose_exclude",
     "constraint",
     "constraint_and_exclude",

@@ -11,9 +11,9 @@ aggregation is the primitive.
 This project defines that composition, and builds the machinery to enforce it
 inside a federated training run.
 
-> Status: **increment 3**. The algebra and its anti-monotonicity property are
-> built and checked; the policy corpus is grounded in real GA4GH DUO
-> annotations. Increment 4 measures erosion properly and is the go/no-go.
+> Status: **increment 4 complete — the go/no-go passed.** Permission erosion is
+> real, large, and driven by policy diversity rather than federation size.
+> Increments 5–11 proceed with one revision to scope, below.
 
 ## The core claim
 
@@ -148,6 +148,64 @@ algebra cannot take is worth reporting rather than hiding.
 Every code carries a `fidelity` field (`exact` or `interpretive`), so the
 places where DUO and ODRL do not line up cleanly are visible.
 
+## The result: permission erosion is real
+
+```bash
+python experiments/run_erosion.py
+```
+
+40 DUO-derived contributors, 60 subset draws per size, 5 corpus seeds,
+95% bootstrap intervals (bootstrap because the statistic is bimodal — a subset
+either keeps its capability or loses all of it):
+
+```
+  size          capability  retains        purpose retained  duties
+     1    4.00 [4.00,4.00]    100%     0.587 [0.551,0.624]    0.20
+     3    3.57 [3.44,3.71]     89%     0.295 [0.266,0.324]    0.62
+     5    3.07 [2.87,3.25]     77%     0.195 [0.170,0.220]    0.85
+    10    1.79 [1.56,2.01]     45%     0.072 [0.059,0.087]    1.10
+    20    0.28 [0.17,0.40]      7%     0.006 [0.003,0.009]    1.39
+    30    0.01 [0.00,0.04]      0%     0.000 [0.000,0.001]    1.56
+```
+
+Note the two columns moving in opposite directions. **Capability falls while
+duties accumulate** — permissions intersect and obligations union — so a growing
+federation simultaneously loses what it may do and gains what it must do.
+
+At `heterogeneity = 0` the same curve is perfectly flat at 4.00 / 100% for every
+size. **Erosion is a property of policy diversity, not of federation size.**
+
+### Go/no-go verdict
+
+| Criterion | | Result |
+|---|---|---|
+| non-trivial | PASS | capability 4.00 → 1.79 at 10 contributors (55% drop), intervals disjoint |
+| non-degenerate | PASS | 45% of 10-contributor subsets retain capability |
+| attributable | **FAIL** | purpose=98%, spatial=2% |
+| diversity-driven | PASS | 0% drop homogeneous vs 55% diverse |
+
+Criteria were fixed **before** the study ran, and the blocking/advisory split
+was fixed with them: a trivial or degenerate result stops the project, a
+surprise about mechanism calls for rescoping. Both blocking criteria passed.
+
+**The `attributable` failure is a finding, not a defect,** and the criterion was
+mis-specified rather than the data disappointing. It expected several
+mechanisms; the data says erosion is almost entirely **incompatible research
+purposes**. That follows from the vocabulary: DUO expresses *limitations*, so
+every contributor grants the same actions and a withheld grant cannot occur,
+while its only prohibitions are constrained and refine a permission rather than
+removing it. One mechanism at action level is a property of DUO, not an
+artifact of the algebra.
+
+The revised claim is sharper than the one planned: *if you want to federate,
+purpose compatibility is the thing to negotiate.* That also tells increment 5's
+selection search what to prioritise.
+
+**Robustness.** Re-running with only `use` granted — the alternative reading of
+what DUO licenses — gives 59% drop and 41% retention against 55% and 45%, with
+the same attribution. The conclusions do not rest on the `DEFAULT_ACTIONS`
+assumption.
+
 ## Increment roadmap
 
 Ordered by **risk of invalidation**, not by build order — the expensive parts
@@ -159,7 +217,7 @@ sit behind cheap gates. Increments 0–5 involve no federated learning at all.
 | 1 | ODRL data model + JSON-LD subset parser | **done** |
 | 2 | Composition algebra + property tests for anti-monotonicity | **done** |
 | 3 | GA4GH **DUO** → ODRL mapping, policy corpus | **done** |
-| 4 | **Permission-erosion study** ← first result, **go/no-go** | |
+| 4 | **Permission-erosion study** ← first result, **go/no-go** | **done — PROCEED** |
 | 5 | Selection with Apriori pruning; utility proxy | |
 | 6 | Policy-aware `Strategy`; selection at `start()` | |
 | 7 | Enforcement hooks — duties dispatched and verified | |

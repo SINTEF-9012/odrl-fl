@@ -43,6 +43,13 @@ FREQUENCIES_PATH = (
 REGIONS = ("EU", "DE", "FR", "US", "UK")
 EXPIRIES = ("2027-06-30", "2028-12-31", "2030-01-01")
 MORATORIA = ("2026-06-01", "2027-01-01")
+DISEASES = (
+    "ds-cancer",
+    "ds-cardiovascular",
+    "ds-rare-disease",
+    "ds-neurological",
+    "ds-infectious",
+)
 
 
 @dataclass(frozen=True)
@@ -120,6 +127,7 @@ def generate_corpus(
             "region": REGIONS[int(rng.integers(len(REGIONS)))],
             "expiry": EXPIRIES[int(rng.integers(len(EXPIRIES)))],
             "moratorium_until": MORATORIA[int(rng.integers(len(MORATORIA)))],
+            "disease": DISEASES[int(rng.integers(len(DISEASES)))],
         }
         policy, unsupported = translate(
             codes,

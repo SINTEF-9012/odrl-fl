@@ -66,7 +66,17 @@ class LossReason(str, Enum):
 
 
 class Unsatisfiable(Exception):
-    """No assignment satisfies a conjoined constraint set."""
+    """No assignment satisfies a conjoined constraint set.
+
+    Carries the operand responsible. At action level almost every loss in a
+    DUO-derived population is a constraint conflict, so "why did this
+    capability disappear" is only answerable at operand granularity: purpose,
+    spatial, dateTime and the rest fail for quite different reasons.
+    """
+
+    def __init__(self, message: str, operand: LeftOperand | None = None) -> None:
+        super().__init__(message)
+        self.operand = operand
 
 
 @dataclass(frozen=True)
@@ -75,6 +85,11 @@ class CompositionResult:
 
     agreement: Policy
     lost: dict[Action, LossReason] = field(default_factory=dict)
+    #: For actions lost to CONSTRAINT_CONFLICT, the operand that could not be
+    #: reconciled. The substantive attribution: at action level the reason is
+    #: almost always "conflict", and the interesting variance is in *which*
+    #: condition the contributors disagreed about.
+    conflicts: dict[Action, str] = field(default_factory=dict)
 
     @property
     def capability(self) -> frozenset[Action]:
@@ -147,7 +162,8 @@ def _conjoin_set_valued(
             )
             if not positive:
                 raise Unsatisfiable(
-                    f"no shared value for '{operand.value}' across contributors"
+                    f"no shared value for '{operand.value}' across contributors",
+                    operand,
                 )
         else:  # IS_NONE_OF
             negative = taxonomy.join(operand.value, negative, values)
@@ -157,7 +173,8 @@ def _conjoin_set_valued(
             positive = taxonomy.difference(operand.value, positive, negative)
             if not positive:
                 raise Unsatisfiable(
-                    f"every permitted value of '{operand.value}' is also excluded"
+                    f"every permitted value of '{operand.value}' is also excluded",
+                    operand,
                 )
         return [Constraint(operand, Operator.IS_ANY_OF, positive)]
 
@@ -211,7 +228,8 @@ def _conjoin_interval(
         strict = Operator.GT in (lower.operator,) or Operator.LT in (upper.operator,)
         if low > high or (low == high and strict):
             raise Unsatisfiable(
-                f"bounds on '{operand.value}' do not overlap: {lower} and {upper}"
+                f"bounds on '{operand.value}' do not overlap: {lower} and {upper}",
+                operand,
             )
 
     return [c for c in (lower, upper) if c is not None]
@@ -347,6 +365,7 @@ def compose(
 
     permissions: list[Permission] = []
     lost: dict[Action, LossReason] = {}
+    conflicts: dict[Action, str] = {}
 
     for action in sorted(candidates, key=lambda a: a.value):
         # Prohibition is reported ahead of a missing grant when both apply.
@@ -371,8 +390,10 @@ def compose(
             duties = merge_duties(
                 (g.duties for g in grants if g is not None), taxonomy
             )
-        except Unsatisfiable:
+        except Unsatisfiable as conflict:
             lost[action] = LossReason.CONSTRAINT_CONFLICT
+            if conflict.operand is not None:
+                conflicts[action] = conflict.operand.value
             continue
 
         permissions.append(
@@ -387,7 +408,7 @@ def compose(
         obligations=merge_duties((p.obligations for p in contributors), taxonomy),
         derived_from=frozenset(p.uid for p in contributors),
     )
-    return CompositionResult(agreement=agreement, lost=lost)
+    return CompositionResult(agreement=agreement, lost=lost, conflicts=conflicts)
 
 
 def capability(policy: Policy) -> frozenset[Action]:

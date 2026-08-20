@@ -68,6 +68,7 @@ DEFAULT_PARAMS: dict[str, str] = {
     "region": "EU",
     "expiry": "2028-12-31",
     "moratorium_until": "2027-01-01",
+    "disease": "ds-cancer",
 }
 
 
@@ -161,6 +162,10 @@ def translate(
             unsupported.append(code)
         elif kind == "purpose":
             purposes.update(spec["values"])
+        elif kind == "purpose_param":
+            # DS-[XX]: the permitted purpose is the specific disease consented
+            # to, not disease-specific research in general.
+            purposes.add(values[spec["param"]])
         elif kind == "purpose_exclude":
             purpose_excludes.update(spec["values"])
         elif kind == "constraint":

@@ -60,10 +60,8 @@
       "class": "permission",
       "fidelity": "exact",
       "odrl": {
-        "kind": "purpose",
-        "values": [
-          "disease-specific-research"
-        ]
+        "kind": "purpose_param",
+        "param": "disease"
       }
     },
     "DUO:0000011": {
