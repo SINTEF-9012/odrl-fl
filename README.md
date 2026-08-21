@@ -244,6 +244,79 @@ compatible with the anchor and incompatible with one another
 sufficient — which is precisely the argument for selecting explicitly, and why
 selection is a set-level search rather than a filter.
 
+## Selection: recovering a usable consortium
+
+Erosion says a federation assembled without regard to policy usually cannot
+lawfully use the model it produces. Selection turns that into a search: among
+all subsets of a pool, find those whose composed policy satisfies a stated
+requirement, and among those, the ones offering the most data.
+
+**It is a search, not a filter.** Because compatibility is not transitive,
+candidates cannot be vetted one at a time against a reference policy —
+feasibility is a property of the set. Two contributors can each satisfy the
+requirement alone and grant nothing together
+(`tests/test_selection.py::test_two_viable_contributors_can_be_jointly_infeasible`).
+
+**It is tractable anyway.** Anti-monotonicity makes feasibility *downward
+closed*: every subset of a feasible set is feasible, so a contributor that fails
+alone can be dropped from the pool outright, and a (k+1)-set need only be
+considered when all its k-subsets are feasible. That is exactly Apriori's
+candidate generation. The pruning is sound only on the legal side — utility is
+empirical and not reliably monotone, so pruning on it could discard the optimum.
+
+A test asserts the search returns **exactly** the maximal sets an exhaustive
+scan finds, across several seeds. Pruning must not cost completeness.
+
+### A request asks for containment, not overlap
+
+Getting this wrong quietly voids the whole exercise, and it did at first. A
+request constraint was tested with `taxonomy.meet` — non-empty intersection — so
+an agreement permitting only `biomedical-research` answered *yes* to "may we use
+this for research". A consortium would believe it held a right it did not have.
+
+It also made the purpose knob a no-op: because `research` overlaps nearly every
+DUO-derived purpose in the corpus, runs with and without a purpose constraint
+produced byte-identical search statistics. The fix is `taxonomy.difference` —
+every term the request names must already be permitted. On the request side
+`isAnyOf {a, b}` reads as "either branch may be taken", so both must be granted:
+you cannot know in advance which one gets taken, and a consortium that is only
+*sometimes* lawful is not a viable consortium.
+
+### Request tightness is what makes selection hard
+
+Pool of 16, 5 corpus seeds, requiring `use` and `aggregate`:
+
+| request | viable alone | subsets evaluated | search space avoided | policy-aware yield | policy-blind yield |
+|---|---|---|---|---|---|
+| actions only | 16.0/16 | 25,634 | 60.9% | 100% | 20% |
+| `purpose = ds-cancer` | 12.8/16 | 10,652 | 83.8% | 100% | 0% |
+| `purpose = research` | 9.0/16 | 889 | **98.6%** | 100% | 0% |
+
+**Deployable utility** — data drawn from a consortium actually permitted to use
+it — is the only comparison that counts. A policy-blind consortium scores its
+full data volume when it happens to be feasible and zero otherwise:
+
+| request | policy-aware | policy-blind |
+|---|---|---|
+| actions only | 114.2 | 21.4 |
+| `purpose = ds-cancer` | 95.9 | 0.0 |
+| `purpose = research` | 83.1 | 0.0 |
+
+Read the two ends of the pruning column together rather than quoting the
+favourable one. **Apriori pays off precisely where selection is hard**, and
+degenerates toward exhaustive enumeration where the requirement is so permissive
+that almost any consortium would have satisfied it anyway. That is a property of
+the problem, not a deficiency of the algorithm: the feasible family really is
+that large when the constraint is weak — 14,463 feasible sets out of 65,535 at
+seed 0 under the unconstrained request.
+
+Two caveats worth stating plainly. The 100% policy-aware yield is **structural,
+not empirical**: the search returns maximal feasible sets, so it succeeds
+whenever any contributor is viable alone. The interesting column is the
+policy-blind one next to it. And finding maximal sets by enumerating the whole
+feasible family is exponential in that family's size; `max_size` caps it, but no
+better algorithm is implemented.
+
 ## Increment roadmap
 
 Ordered by **risk of invalidation**, not by build order — the expensive parts
@@ -256,7 +329,7 @@ sit behind cheap gates. Increments 0–5 involve no federated learning at all.
 | 2 | Composition algebra + property tests for anti-monotonicity | **done** |
 | 3 | GA4GH **DUO** → ODRL mapping, policy corpus | **done** |
 | 4 | **Permission-erosion study** ← first result, **go/no-go** | **done — PROCEED** |
-| 5 | Selection with Apriori pruning; utility proxy | |
+| 5 | Selection with Apriori pruning; utility proxy | **done** |
 | 6 | Policy-aware `Strategy`; selection at `start()` | |
 | 7 | Enforcement hooks — duties dispatched and verified | |
 | 8 | Policy-carrying model export + provenance log | |
@@ -281,6 +354,20 @@ pip install -e ".[dev]"
 
 ```bash
 python experiments/run_fedavg.py --clients 6 --rounds 5
+```
+
+The three studies, in the order they were run:
+
+```bash
+python experiments/run_erosion.py
+```
+
+```bash
+python experiments/run_sensitivity.py
+```
+
+```bash
+python experiments/run_selection.py
 ```
 
 ```bash

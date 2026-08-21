@@ -133,12 +133,20 @@ def make_dataset(
     samples_per_client: int = SAMPLES_PER_CLIENT,
     n_features: int = N_FEATURES,
     n_classes: int = N_CLASSES,
+    size_variation: float = 0.0,
 ) -> list[Partition]:
     """Generate a federated synthetic dataset with Dirichlet label skew.
 
-    `alpha` controls heterogeneity, the standard non-IID mechanism in the FL
-    literature: small values concentrate each client on a few classes, large
+    `alpha` controls label heterogeneity, the standard non-IID mechanism in the
+    FL literature: small values concentrate each client on a few classes, large
     values approach a uniform (IID) split.
+
+    `size_variation` controls how much clients differ in *volume*, log-normally.
+    At 0.0 every client holds the same number of samples, which keeps the
+    earlier increments reproducible. That uniformity is unrealistic and it
+    flattens any utility measure into a function of set size alone -- real
+    institutions differ in data volume by orders of magnitude, and selection
+    only has something to trade when they do.
 
     Fully determined by `seed`. Later increments compare *subsets* of
     contributors, which is only meaningful if a given client always holds the
@@ -153,14 +161,19 @@ def make_dataset(
         # same whether the federation has 4 members or 40.
         client_rng = np.random.default_rng([seed, client_id])
 
+        n_samples = samples_per_client
+        if size_variation > 0.0:
+            scale = float(np.exp(client_rng.normal(0.0, size_variation)))
+            n_samples = max(50, round(samples_per_client * scale))
+
         proportions = client_rng.dirichlet(np.full(n_classes, alpha))
-        labels = client_rng.choice(n_classes, size=samples_per_client, p=proportions)
+        labels = client_rng.choice(n_classes, size=n_samples, p=proportions)
 
         features = means[labels] + client_rng.normal(
-            loc=0.0, scale=1.0, size=(samples_per_client, n_features)
+            loc=0.0, scale=1.0, size=(n_samples, n_features)
         )
 
-        split = int(0.8 * samples_per_client)
+        split = int(0.8 * n_samples)
         partitions.append(
             Partition(
                 client_id=client_id,
@@ -174,10 +187,16 @@ def make_dataset(
 
 
 def load_partition(
-    client_id: int, n_clients: int, alpha: float = 1.0, seed: int = 0
+    client_id: int,
+    n_clients: int,
+    alpha: float = 1.0,
+    seed: int = 0,
+    size_variation: float = 0.0,
 ) -> Partition:
     """Return one client's data. **The seam for swapping in a real dataset.**"""
-    return make_dataset(n_clients=n_clients, alpha=alpha, seed=seed)[client_id]
+    return make_dataset(
+        n_clients=n_clients, alpha=alpha, seed=seed, size_variation=size_variation
+    )[client_id]
 
 
 def global_test_loader(seed: int = 0, batch_size: int = 64) -> DataLoader:
