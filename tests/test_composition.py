@@ -408,6 +408,98 @@ class TestCapabilityAndMatching:
         )
         assert not satisfies(agreement, commercial)
 
+    def test_a_request_broader_than_the_grant_is_refused(self):
+        """Containment, not overlap.
+
+        An agreement permitting only biomedical research does not answer yes to
+        "may we use this for research". Testing for a non-empty intersection
+        instead is how a consortium ends up believing it holds a right it does
+        not have -- and it silently reduces a purpose-constrained request to a
+        no-op, since almost every purpose in the corpus overlaps `research`.
+        """
+        agreement = offer(
+            "urn:narrow",
+            permissions=[
+                Permission(
+                    action=Action.USE,
+                    constraints=frozenset({purpose("biomedical-research")}),
+                )
+            ],
+        )
+        broad = Policy(
+            uid="urn:request:broad",
+            type=PolicyType.REQUEST,
+            permissions=frozenset(
+                {
+                    Permission(
+                        action=Action.USE,
+                        constraints=frozenset({purpose("research")}),
+                    )
+                }
+            ),
+        )
+        assert not satisfies(agreement, broad)
+
+    def test_a_request_narrower_than_the_grant_is_allowed(self):
+        """The other direction must still work, or nothing is ever feasible."""
+        agreement = offer(
+            "urn:broad",
+            permissions=[
+                Permission(
+                    action=Action.USE,
+                    constraints=frozenset({purpose("research")}),
+                )
+            ],
+        )
+        narrow = Policy(
+            uid="urn:request:narrow",
+            type=PolicyType.REQUEST,
+            permissions=frozenset(
+                {
+                    Permission(
+                        action=Action.USE,
+                        constraints=frozenset({purpose("ds-cancer")}),
+                    )
+                }
+            ),
+        )
+        assert satisfies(agreement, narrow)
+
+    def test_a_request_touching_a_prohibited_subtree_is_refused(self):
+        """Exclusion is inherited downwards, so a broad request collides with it.
+
+        General research subsumes cancer research, so an agreement excluding
+        cancer research cannot grant general research. A request for a sibling
+        purpose is unaffected.
+        """
+        agreement = offer(
+            "urn:excluding",
+            permissions=[
+                Permission(
+                    action=Action.USE,
+                    constraints=frozenset({purpose("ds-cancer", negated=True)}),
+                )
+            ],
+        )
+
+        def request_for(value: str) -> Policy:
+            return Policy(
+                uid=f"urn:request:{value}",
+                type=PolicyType.REQUEST,
+                permissions=frozenset(
+                    {
+                        Permission(
+                            action=Action.USE,
+                            constraints=frozenset({purpose(value)}),
+                        )
+                    }
+                ),
+            )
+
+        assert not satisfies(agreement, request_for("research"))
+        assert not satisfies(agreement, request_for("ds-cancer"))
+        assert satisfies(agreement, request_for("ds-neurological"))
+
     def test_empty_composition_is_rejected(self):
         with pytest.raises(ValueError):
             compose([])

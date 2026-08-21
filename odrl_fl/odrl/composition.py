@@ -435,20 +435,28 @@ def _constraint_allows(
     if required.left_operand in SET_VALUED:
         assert isinstance(required.right_operand, frozenset)
         assert isinstance(allowed.right_operand, frozenset)
+        # Containment, not overlap. A request states what the requester intends
+        # to do, and the agreement has to cover *all* of it. Testing for overlap
+        # instead answers "may we use this for research?" with yes when only
+        # cancer research is permitted, which is how a consortium ends up
+        # believing it holds a right it does not have.
+        #
+        # `isAnyOf` on the request side reads as "either branch may be taken",
+        # so every branch must be granted. Conservative on purpose: you cannot
+        # know in advance which one gets taken, and a consortium that is only
+        # sometimes lawful is not a viable consortium.
         if allowed.operator is Operator.IS_NONE_OF:
-            return bool(
-                taxonomy.difference(
-                    required.left_operand.value,
-                    required.right_operand,
-                    allowed.right_operand,
-                )
-            )
-        return bool(
-            taxonomy.meet(
+            # Nothing the request names may fall under an excluded term.
+            return not taxonomy.meet(
                 required.left_operand.value,
-                allowed.right_operand,
                 required.right_operand,
+                allowed.right_operand,
             )
+        # Every term the request names must already be permitted.
+        return not taxonomy.difference(
+            required.left_operand.value,
+            required.right_operand,
+            allowed.right_operand,
         )
     try:
         _conjoin_interval(required.left_operand, [allowed, required])
