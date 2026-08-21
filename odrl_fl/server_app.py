@@ -1,21 +1,41 @@
-"""Flower ServerApp: vanilla FedAvg.
+"""Flower ServerApp: policy-aware FedAvg.
 
-The baseline. Later increments replace `FedAvg` with a policy-aware strategy
-that (a) selects contributors from the composed policy rather than sampling
-them, (b) dispatches duties into the training config, (c) verifies those duties
-before admitting an update, and (d) attaches the composed policy to the exported
-model. None of that exists yet -- this is the thing those changes are measured
-against.
+Membership is decided before the first round. The server asks every connected
+node to declare its data-use terms, composes the declarations, and searches for
+a consortium whose combined terms grant what the federation actually needs.
+Only that consortium trains.
+
+Of the four things a policy-aware server should do, this increment does the
+first: select contributors from the composed policy rather than sampling them.
+Still to come -- dispatch duties into the training config (increment 7), verify
+them before admitting an update (7), and attach the composed policy to the
+exported model (8).
+
+Set `require-purpose` to see the mechanism bite. A request naming only actions
+is nearly always satisfiable, so almost nobody gets excluded and the run
+resembles plain FedAvg. That is the honest behaviour rather than a bug: when
+the requirement is weak, selection has little to do.
 """
 
 from __future__ import annotations
 
+from logging import INFO
+
 import torch
 from flwr.app import ArrayRecord, ConfigRecord, Context, MetricRecord
+from flwr.common.logger import log
 from flwr.serverapp import Grid, ServerApp
-from flwr.serverapp.strategy import FedAvg
 
-from odrl_fl.task import Net, evaluate, global_test_loader
+from odrl_fl.odrl import Action
+from odrl_fl.selection import requirement
+from odrl_fl.strategy import (
+    Announcement,
+    PolicyAwareFedAvg,
+    admit,
+    collect_announcements,
+    declared_utility,
+)
+from odrl_fl.task import N_CLASSES, Net, evaluate, global_test_loader
 
 app = ServerApp()
 
@@ -39,19 +59,62 @@ def make_central_evaluate(seed: int):
     return central_evaluate
 
 
+def report(announcements: list[Announcement], admission) -> None:
+    """Log the decision in full. An unexplained exclusion is not auditable."""
+    log(INFO, "policy round: %s nodes declared", len(announcements))
+    log(
+        INFO,
+        "admitted %s of %s declared: %s",
+        len(admission.admitted),
+        len(announcements),
+        list(admission.admitted),
+    )
+    for node_id, reason in sorted(admission.excluded.items()):
+        log(INFO, "  excluded node %s -- %s", node_id, reason)
+    log(
+        INFO,
+        "the federation may: %s",
+        ", ".join(sorted(a.value for a in admission.capability)) or "nothing",
+    )
+    if admission.duties:
+        log(INFO, "and owes: %s", ", ".join(admission.duties))
+
+
 @app.main()
 def main(grid: Grid, context: Context) -> None:
     num_rounds = int(context.run_config.get("num-server-rounds", 5))
     local_epochs = int(context.run_config.get("local-epochs", 1))
     fraction_train = float(context.run_config.get("fraction-train", 1.0))
-    min_nodes = int(context.run_config.get("min-nodes", 2))
 
-    strategy = FedAvg(
+    # What this federation needs to be able to do. Naming a purpose is what
+    # makes the requirement bite -- see the module docstring.
+    actions = [
+        Action(a.strip())
+        for a in str(
+            context.run_config.get("require-actions", "use,aggregate")
+        ).split(",")
+        if a.strip()
+    ]
+    purpose = str(context.run_config.get("require-purpose") or "") or None
+    request = requirement(*actions, purpose=purpose)
+
+    # Decide membership before a single round happens. `admit` raises
+    # NoFeasibleConsortium if nothing composes -- deliberately fatal, because
+    # falling back to training on everyone produces exactly the unusable model
+    # this work is about.
+    announcements, unreachable = collect_announcements(grid)
+    admission = admit(
+        announcements,
+        request,
+        declared_utility(N_CLASSES),
+        rejected=unreachable,
+    )
+    report(announcements, admission)
+
+    strategy = PolicyAwareFedAvg(
+        admitted=admission.admitted,
         fraction_train=fraction_train,
         fraction_evaluate=fraction_train,
-        min_train_nodes=min_nodes,
-        min_evaluate_nodes=min_nodes,
-        min_available_nodes=min_nodes,
     )
 
     seed = int(context.run_config.get("seed", 0))

@@ -40,6 +40,18 @@ min-nodes = 2
 alpha = 1.0
 seed = 0
 
+# What the federation must be permitted to do. Membership is chosen to satisfy
+# this before the first round -- see `odrl_fl/server_app.py`.
+#
+# `require-purpose` is what makes the requirement bite. Left empty, the request
+# names only actions, which nearly every contributor grants, so almost nobody
+# is excluded. Set it to a term from the purpose taxonomy (`research`,
+# `ds-cancer`, ...) to select against a real research aim. Broader purposes are
+# harder to satisfy: a grant covering all of `research` also covers
+# `ds-cancer`, but not the reverse.
+require-actions = "use,aggregate"
+require-purpose = ""
+
 
 # --- SuperLink connection --------------------------------------------------
 #

@@ -317,6 +317,73 @@ policy-blind one next to it. And finding maximal sets by enumerating the whole
 feasible family is exponential in that family's size; `max_size` caps it, but no
 better algorithm is implemented.
 
+## The federation selects its own members
+
+Everything above is an offline study. This is where it becomes a system: the
+server decides *who trains* from the composed policy, before the first round.
+
+Stock `FedAvg` samples participants at random from the Grid
+(`flwr/serverapp/strategy/fedavg.py`). That is not bad statistics -- it simply
+takes no position on whether the resulting model may lawfully exist.
+
+**Contributors declare; the server does not assume.** A `@app.query()` round
+runs before `strategy.start()`. Each node translates its own DUO codes locally
+and replies with an ODRL Offer as JSON-LD; the server composes what it is told,
+searches for a feasible consortium, and addresses only the admitted nodes. The
+server could have looked the policies up in the same corpus the studies use,
+and that would be simpler -- but a server that invents its clients' consent
+terms demonstrates nothing.
+
+```
+declaration round: 10 nodes answered
+  node  0   464 samples  3/4 classes  DUO:0000006, DUO:0000018
+  node  1   452 samples  4/4 classes  DUO:0000007, DUO:0000015, DUO:0000016, ...
+  ...
+admitted 7 of 10: [0, 3, 4, 6, 7, 8, 9]
+  excluded node 1 -- terms do not compose with the selected consortium
+  excluded node 2 -- terms do not compose with the selected consortium
+  excluded node 5 -- terms do not compose with the selected consortium
+the federation may: aggregate, derive, distribute, use
+and owes: inform
+```
+
+Three design commitments worth stating.
+
+**No feasible consortium is fatal.** `admit` raises rather than falling back to
+training on everyone. That fallback would produce exactly the unusable model
+this project is about, and would do it silently.
+
+**A declaration that cannot be parsed excludes the node.** Never admitted on a
+default -- guessing at consent terms is the one failure mode all of this exists
+to prevent. Nodes that stay silent are recorded as such, not assumed benign.
+
+**Evaluation is restricted too, not just training.** An excluded node does not
+see the model at all, not even to score it.
+
+The decision logic is a pure function over declarations, with no Grid, no
+transport and no clock, which is what makes it testable: Ray publishes no
+Windows wheel for Python 3.13, so no test here can start a real federation. A
+`FakeGrid` covers message addressing, and
+`test_only_admitted_nodes_are_addressed` is the load-bearing check -- if the
+strategy ever addressed an excluded node, the federation would train on data it
+was not permitted to use.
+
+### What it costs, end to end
+
+`experiments/policy_aware_demo.py` runs declarations through admission into
+actual training, in-process. Ten nodes, requiring `use` and `aggregate` for
+`ds-cancer`:
+
+| consortium | members | accuracy | permitted to use it |
+|---|---|---|---|
+| policy-aware | 7 | 0.735 | **yes** |
+| policy-blind | 7 | 0.939 | no |
+
+The policy-blind consortium trains the better model here. Whether it does so
+varies by seed and is beside the point: **deployable accuracy is 0.735 against
+0.000**. An undeployable model has no accuracy worth quoting, and what
+selection buys is the right to use the result at all.
+
 ## Increment roadmap
 
 Ordered by **risk of invalidation**, not by build order — the expensive parts
@@ -330,7 +397,7 @@ sit behind cheap gates. Increments 0–5 involve no federated learning at all.
 | 3 | GA4GH **DUO** → ODRL mapping, policy corpus | **done** |
 | 4 | **Permission-erosion study** ← first result, **go/no-go** | **done — PROCEED** |
 | 5 | Selection with Apriori pruning; utility proxy | **done** |
-| 6 | Policy-aware `Strategy`; selection at `start()` | |
+| 6 | Policy-aware `Strategy`; selection at `start()` | **done** |
 | 7 | Enforcement hooks — duties dispatched and verified | |
 | 8 | Policy-carrying model export + provenance log | |
 | 9 | Periodic re-evaluation (expiry, count, duty violation) | |
@@ -370,6 +437,12 @@ python experiments/run_sensitivity.py
 python experiments/run_selection.py
 ```
 
+Selection through to a trained model, no federation required:
+
+```bash
+python experiments/policy_aware_demo.py
+```
+
 ```bash
 pytest
 ```
@@ -388,9 +461,11 @@ one. So sweeps use the in-process loop, and Flower carries the systems
 contribution.
 
 Both report the **same metric**: accuracy of the global model on the shared
-held-out test set. Establishing that they agree numerically is an increment-6
-task; today the Flower path is verified as "it runs and learns", which it does
-(0.195 → 0.553 over five rounds).
+held-out test set, and they are now known to **aggregate identically** --
+`tests/test_strategy.py::TestPathsAgree` asserts our `federated_average`
+matches Flower's `aggregate_arrayrecords` on the same inputs. Without that,
+every number measured on the fast path would be a claim about a different
+algorithm.
 
 Running the Flower path needs the deployment engine, because **Flower's
 simulation backend requires Ray, and Ray ships no Windows wheels for Python

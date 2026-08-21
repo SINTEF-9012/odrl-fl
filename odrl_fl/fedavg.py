@@ -94,6 +94,7 @@ def run_fedavg(
     local_epochs: int = 1,
     alpha: float = 1.0,
     seed: int = 0,
+    size_variation: float = 0.0,
 ) -> History:
     """Train a federated model over `contributors` and report per-round accuracy.
 
@@ -101,6 +102,11 @@ def run_fedavg(
     partitions are keyed on client id, so client 3 holds the same data whether
     or not clients 1 and 2 were selected. That is what makes comparing subsets
     meaningful.
+
+    `size_variation` must match whatever produced the partitions being
+    reasoned about elsewhere. The policy-aware path has contributors
+    *declare* their data volume, and a declaration that does not match the
+    data actually trained on is worse than no declaration at all.
 
     Evaluation uses the **shared held-out global test set**, never the
     contributors' own splits. Scoring a subset on its own data makes utility
@@ -116,7 +122,9 @@ def run_fedavg(
     torch.manual_seed(seed)
 
     partitions = {
-        cid: load_partition(cid, n_clients, alpha=alpha, seed=seed)
+        cid: load_partition(
+            cid, n_clients, alpha=alpha, seed=seed, size_variation=size_variation
+        )
         for cid in contributors
     }
     trainloaders = {cid: to_loaders(part)[0] for cid, part in partitions.items()}

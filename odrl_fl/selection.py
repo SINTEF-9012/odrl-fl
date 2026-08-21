@@ -40,8 +40,8 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from itertools import combinations as iter_combinations
+from typing import Protocol
 
-from odrl_fl.corpus import Contributor
 from odrl_fl.odrl import (
     Action,
     Constraint,
@@ -54,8 +54,21 @@ from odrl_fl.odrl import (
     satisfies,
 )
 
-#: Scores a contributor set. Higher is better.
-UtilityFn = Callable[[Sequence[Contributor]], float]
+
+class PolicyBearing(Protocol):
+    """Anything that carries an ODRL policy.
+
+    The search needs nothing else. Candidates arrive from the corpus in the
+    offline studies and over the wire as node announcements in the Flower path,
+    and neither side should have to know the other exists.
+    """
+
+    @property
+    def policy(self) -> Policy: ...
+
+
+#: Scores a candidate set. Higher is better.
+UtilityFn = Callable[[Sequence[PolicyBearing]], float]
 
 
 def requirement(
@@ -162,7 +175,7 @@ class SelectionResult:
 
 
 def is_feasible(
-    subset: Sequence[Contributor], request: Policy, taxonomy=None
+    subset: Sequence[PolicyBearing], request: Policy, taxonomy=None
 ) -> bool:
     """Does this set's composed policy grant everything the request asks for?"""
     if not subset:
@@ -172,7 +185,7 @@ def is_feasible(
 
 
 def search(
-    pool: Sequence[Contributor],
+    pool: Sequence[PolicyBearing],
     request: Policy,
     utility: UtilityFn,
     *,
@@ -290,7 +303,7 @@ def pareto_front(candidates: Iterable[Candidate]) -> list[Candidate]:
 
 
 def policy_blind_selection(
-    pool: Sequence[Contributor], utility: UtilityFn, size: int
+    pool: Sequence[PolicyBearing], utility: UtilityFn, size: int
 ) -> tuple[int, ...]:
     """Pick the `size` contributors that maximise utility, ignoring policy.
 
