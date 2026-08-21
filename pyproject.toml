@@ -52,6 +52,15 @@ seed = 0
 require-actions = "use,aggregate"
 require-purpose = ""
 
+# Evidence that the agreement's *preconditions* have been discharged, as
+# `action=reference` pairs. A precondition cannot be discharged by the run that
+# depends on it, so the server refuses to start without this -- see the gate in
+# `odrl_fl/duties.py`. Nothing validates that the reference is real; the point
+# is that a person has to assert it explicitly.
+#
+#     duty-evidence = "obtainConsent=IRB-2026-0142"
+duty-evidence = ""
+
 
 # --- SuperLink connection --------------------------------------------------
 #

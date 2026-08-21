@@ -32,17 +32,31 @@ from __future__ import annotations
 import json
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
+from logging import INFO
 
 from flwr.app import (
     ArrayRecord,
     ConfigRecord,
     Message,
     MessageType,
+    MetricRecord,
     RecordDict,
 )
+from flwr.common.logger import log
 from flwr.serverapp import Grid
 from flwr.serverapp.strategy import FedAvg
 
+from odrl_fl.duties import (
+    COMPLIANCE_KEY,
+    DIRECTIVE_KEY,
+    Compliance,
+    Directive,
+    DutyPlan,
+    Ledger,
+    encode_directives,
+    plan_duties,
+    verify,
+)
 from odrl_fl.odrl import (
     Action,
     ODRLError,
@@ -179,12 +193,12 @@ def declared_utility(n_classes: int) -> UtilityFn:
 
 @dataclass(frozen=True)
 class Admission:
-    """Who is in, who is out, and what the federation may do as a result."""
+    """Who is in, who is out, and what the federation may and must do."""
 
     admitted: tuple[int, ...]
     agreement: Policy
     capability: frozenset[Action]
-    duties: tuple[str, ...]
+    plan: DutyPlan
     excluded: Mapping[int, str]
     result: SelectionResult | None = None
 
@@ -238,11 +252,20 @@ def admit(
     admitted_policies = [announcements[i].policy for i in best.members]
     composed = compose(admitted_policies, taxonomy=taxonomy)
 
+    # Sort what the agreement demands by what can be done about it. Attributed
+    # to the members that granted it, so an outstanding obligation names who
+    # owes it rather than floating free.
+    plan = plan_duties(
+        composed.agreement,
+        owed_by=tuple(announcements[i].policy.assigner or f"node-{announcements[i].node_id}"
+                      for i in best.members),
+    )
+
     return Admission(
         admitted=chosen,
         agreement=composed.agreement,
         capability=best.capability,
-        duties=tuple(sorted(d.action.value for d in composed.agreement.obligations)),
+        plan=plan,
         excluded=excluded,
         result=outcome,
     )
@@ -307,9 +330,17 @@ class PolicyAwareFedAvg(FedAvg):
     as the on/off switch the base class treats them as.
     """
 
-    def __init__(self, admitted: Sequence[int], **kwargs) -> None:
+    def __init__(
+        self,
+        admitted: Sequence[int],
+        directives: Sequence[Directive] = (),
+        ledger: Ledger | None = None,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self._admitted = tuple(dict.fromkeys(admitted))
+        self._directives = tuple(directives)
+        self._ledger = ledger if ledger is not None else Ledger()
         if not self._admitted:
             raise ValueError(
                 "a policy-aware federation needs at least one admitted node; "
@@ -319,6 +350,10 @@ class PolicyAwareFedAvg(FedAvg):
     @property
     def admitted(self) -> tuple[int, ...]:
         return self._admitted
+
+    @property
+    def ledger(self) -> Ledger:
+        return self._ledger
 
     def _addressed(self, record: RecordDict, message_type: str) -> list[Message]:
         return [
@@ -332,10 +367,50 @@ class PolicyAwareFedAvg(FedAvg):
         if self.fraction_train == 0.0:
             return []
         config["server-round"] = server_round
+        # Dispatch the duties a client can act on. Sent every round rather than
+        # once at setup: a client joining late, or restarting, must not end up
+        # training without its instructions.
+        config[DIRECTIVE_KEY] = encode_directives(self._directives)
         record = RecordDict(
             {self.arrayrecord_key: arrays, self.configrecord_key: config}
         )
         return self._addressed(record, MessageType.TRAIN)
+
+    def aggregate_train(
+        self, server_round: int, replies: Iterable[Message]
+    ) -> tuple[ArrayRecord | None, MetricRecord | None]:
+        """Drop updates that do not evidence their duties, then aggregate.
+
+        Filters and delegates, so FedAvg's own validation and example-count
+        weighting stay untouched -- a dropped update must not alter how the
+        surviving ones are averaged.
+
+        Bounded by the attestation gap: this checks what a client *reported*.
+        See `odrl_fl.duties`.
+        """
+        kept: list[Message] = []
+        for reply in replies:
+            # Transport errors are FedAvg's business, not a duty question.
+            if reply.has_error():
+                kept.append(reply)
+                continue
+
+            ok, reason = verify(self._directives, self._claim_of(reply))
+            if ok:
+                kept.append(reply)
+            else:
+                node_id = reply.metadata.src_node_id
+                self._ledger.reject(server_round, node_id, reason)
+                log(INFO, "round %s: dropped node %s -- %s", server_round, node_id, reason)
+
+        return super().aggregate_train(server_round, kept)
+
+    def _claim_of(self, reply: Message) -> Compliance:
+        """What a reply claims about its duties. Absent means claiming nothing."""
+        for record in reply.content.config_records.values():
+            if COMPLIANCE_KEY in record:
+                return Compliance.decode(record[COMPLIANCE_KEY])
+        return Compliance()
 
     def configure_evaluate(
         self, server_round: int, arrays: ArrayRecord, config: ConfigRecord, grid: Grid

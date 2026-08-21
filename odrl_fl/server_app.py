@@ -5,16 +5,22 @@ node to declare its data-use terms, composes the declarations, and searches for
 a consortium whose combined terms grant what the federation actually needs.
 Only that consortium trains.
 
-Of the four things a policy-aware server should do, this increment does the
-first: select contributors from the composed policy rather than sampling them.
-Still to come -- dispatch duties into the training config (increment 7), verify
-them before admitting an update (7), and attach the composed policy to the
-exported model (8).
+It then acts on what the agreement *demands*, in the only three ways a system
+can. Preconditions **gate**: the run refuses to start without evidence that
+somebody discharged them. Runtime duties are **dispatched** into the training
+config and their claimed discharge verified before an update is aggregated.
+Everything else -- publish results, return findings, attribute, compensate --
+can only be **recorded**, because no training run can perform it. See
+`odrl_fl.duties` for why that last category is the largest one in practice.
 
-Set `require-purpose` to see the mechanism bite. A request naming only actions
-is nearly always satisfiable, so almost nobody gets excluded and the run
-resembles plain FedAvg. That is the honest behaviour rather than a bug: when
-the requirement is weak, selection has little to do.
+Still to come: attaching the composed policy and the obligation ledger to the
+exported model (increment 8), and re-evaluating membership when a member
+withdraws consent mid-run (9).
+
+Set `require-purpose` to see selection bite. A request naming only actions is
+nearly always satisfiable, so almost nobody gets excluded and the run resembles
+plain FedAvg. That is the honest behaviour rather than a bug: when the
+requirement is weak, selection has little to do.
 """
 
 from __future__ import annotations
@@ -26,6 +32,7 @@ from flwr.app import ArrayRecord, ConfigRecord, Context, MetricRecord
 from flwr.common.logger import log
 from flwr.serverapp import Grid, ServerApp
 
+from odrl_fl.duties import Ledger, check_gates
 from odrl_fl.odrl import Action
 from odrl_fl.selection import requirement
 from odrl_fl.strategy import (
@@ -59,6 +66,22 @@ def make_central_evaluate(seed: int):
     return central_evaluate
 
 
+def parse_evidence(raw: str) -> dict[str, str]:
+    """Read `duty-evidence` -- "obtainConsent=IRB-2026-0142,anonymize=DPIA-7".
+
+    Thin on purpose: it records that a human asserted a reference, and nothing
+    here checks the reference is real. The gate's value is that the assertion
+    has to be made explicitly before the run proceeds, not that this code
+    validates ethics paperwork.
+    """
+    evidence: dict[str, str] = {}
+    for item in raw.split(","):
+        if "=" in item:
+            action, _, reference = item.partition("=")
+            evidence[action.strip()] = reference.strip()
+    return evidence
+
+
 def report(announcements: list[Announcement], admission) -> None:
     """Log the decision in full. An unexplained exclusion is not auditable."""
     log(INFO, "policy round: %s nodes declared", len(announcements))
@@ -76,8 +99,18 @@ def report(announcements: list[Announcement], admission) -> None:
         "the federation may: %s",
         ", ".join(sorted(a.value for a in admission.capability)) or "nothing",
     )
-    if admission.duties:
-        log(INFO, "and owes: %s", ", ".join(admission.duties))
+    plan = admission.plan
+    if plan.gates:
+        log(INFO, "before starting, must evidence: %s",
+            ", ".join(sorted(d.action.value for d in plan.gates)))
+    if plan.directives:
+        log(INFO, "dispatched to clients each round: %s",
+            ", ".join(f"{d.action}"
+                      + (f" (eps<={d.epsilon})" if d.epsilon else "")
+                      for d in plan.directives))
+    for obligation in plan.outstanding:
+        log(INFO, "OUTSTANDING %s -- owed by %s, not dischargeable by training",
+            obligation.action, ", ".join(obligation.owed_by) or "the consortium")
 
 
 @app.main()
@@ -111,8 +144,22 @@ def main(grid: Grid, context: Context) -> None:
     )
     report(announcements, admission)
 
+    # The gate. A duty that must be discharged before the run cannot be
+    # discharged *by* the run, so the only faithful thing a system can do is
+    # refuse to start without evidence that somebody discharged it.
+    evidence = parse_evidence(str(context.run_config.get("duty-evidence") or ""))
+    cleared = check_gates(admission.plan.gates, evidence)
+    for action, reference in sorted(cleared.items()):
+        log(INFO, "precondition %s cleared, evidence %s", action, reference)
+
+    ledger = Ledger(
+        outstanding=admission.plan.outstanding, gates_cleared=cleared
+    )
+
     strategy = PolicyAwareFedAvg(
         admitted=admission.admitted,
+        directives=admission.plan.directives,
+        ledger=ledger,
         fraction_train=fraction_train,
         fraction_evaluate=fraction_train,
     )
@@ -128,3 +175,9 @@ def main(grid: Grid, context: Context) -> None:
         evaluate_config=ConfigRecord({}),
         evaluate_fn=make_central_evaluate(seed),
     )
+
+    # What the run leaves behind. Increment 8 attaches this to the exported
+    # model; until then it is at least stated rather than dropped.
+    log(INFO, "obligation ledger:")
+    for line in ledger.summary() or ["(nothing outstanding)"]:
+        log(INFO, "  %s", line)

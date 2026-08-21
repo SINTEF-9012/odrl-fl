@@ -29,6 +29,13 @@ from flwr.app import (
 from flwr.serverapp import Grid
 
 from odrl_fl.corpus import generate_corpus
+from odrl_fl.duties import (
+    COMPLIANCE_KEY,
+    DIRECTIVE_KEY,
+    Compliance,
+    Directive,
+    decode_directives,
+)
 from odrl_fl.odrl import (
     Action,
     Constraint,
@@ -371,3 +378,102 @@ class TestPathsAgree:
 
         for key in ours:
             assert torch.allclose(ours[key], theirs[key], atol=1e-6), key
+
+
+class TestDutyDispatch:
+    """Directives out, compliance claims back, non-compliant updates dropped."""
+
+    def strategy(self, directives=(), ledger=None):
+        return PolicyAwareFedAvg(
+            admitted=(11, 12), directives=directives, ledger=ledger
+        )
+
+    def train_config(self, strategy) -> ConfigRecord:
+        grid = FakeGrid({11: None, 12: None})
+        config = ConfigRecord({})
+        list(
+            strategy.configure_train(
+                1, ArrayRecord(Net().state_dict()), config, grid
+            )
+        )
+        return config
+
+    def reply(self, node_id: int, claim: Compliance | None, weight: float = 10.0):
+        """A well-formed training reply, optionally carrying a compliance claim."""
+        content = RecordDict(
+            {
+                "arrays": ArrayRecord(Net().state_dict()),
+                "metrics": MetricRecord({"num-examples": weight}),
+            }
+        )
+        if claim is not None:
+            content["config"] = ConfigRecord({COMPLIANCE_KEY: claim.encode()})
+        request = Message(
+            content=RecordDict({"config": ConfigRecord({})}),
+            message_type=MessageType.TRAIN,
+            dst_node_id=node_id,
+        )
+        return Message(content, reply_to=request)
+
+    def test_directives_are_dispatched_in_the_train_config(self):
+        directives = (Directive(action="anonymize", epsilon=0.5),)
+        config = self.train_config(self.strategy(directives))
+        assert decode_directives(config[DIRECTIVE_KEY]) == directives
+
+    def test_the_key_is_present_even_with_no_directives(self):
+        """A client must be able to tell "nothing required" from "not told"."""
+        config = self.train_config(self.strategy())
+        assert DIRECTIVE_KEY in config
+        assert decode_directives(config[DIRECTIVE_KEY]) == ()
+
+    def test_a_compliant_update_is_aggregated(self):
+        directives = (Directive(action="anonymize", epsilon=1.0),)
+        strategy = self.strategy(directives)
+        arrays, _ = strategy.aggregate_train(
+            1,
+            [
+                self.reply(11, Compliance({"anonymize": 1.0})),
+                self.reply(12, Compliance({"anonymize": 0.5})),
+            ],
+        )
+        assert arrays is not None
+        assert not strategy.ledger.rejections
+
+    def test_a_non_compliant_update_is_dropped_and_recorded(self):
+        """The enforcement, such as it is: the update does not reach the average."""
+        directives = (Directive(action="anonymize", epsilon=0.5),)
+        strategy = self.strategy(directives)
+        arrays, _ = strategy.aggregate_train(
+            1,
+            [
+                self.reply(11, Compliance({"anonymize": 0.5})),
+                self.reply(12, Compliance({"anonymize": 9.0})),
+            ],
+        )
+        assert arrays is not None  # the compliant one still aggregates
+        assert strategy.ledger.rejected_nodes == {12}
+        assert "exceeds" in strategy.ledger.rejections[0][2]
+
+    def test_a_silent_reply_is_dropped(self):
+        """Omitting the claim must not be a way to skip the duty."""
+        strategy = self.strategy((Directive(action="anonymize", epsilon=1.0),))
+        strategy.aggregate_train(
+            2, [self.reply(11, Compliance({"anonymize": 1.0})), self.reply(12, None)]
+        )
+        assert strategy.ledger.rejected_nodes == {12}
+
+    def test_nothing_is_dropped_when_nothing_was_required(self):
+        strategy = self.strategy()
+        strategy.aggregate_train(1, [self.reply(11, None), self.reply(12, None)])
+        assert not strategy.ledger.rejections
+
+    def test_the_ledger_records_which_round_dropped_a_node(self):
+        strategy = self.strategy((Directive(action="anonymize", epsilon=0.1),))
+        strategy.aggregate_train(7, [self.reply(11, Compliance({"anonymize": 5.0}))])
+        assert strategy.ledger.rejections[0][0] == 7
+
+    def test_dropping_every_update_aggregates_nothing(self):
+        """A round in which nobody complied must not silently produce a model."""
+        strategy = self.strategy((Directive(action="anonymize", epsilon=0.1),))
+        arrays, _ = strategy.aggregate_train(1, [self.reply(11, None)])
+        assert arrays is None

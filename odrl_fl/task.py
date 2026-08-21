@@ -240,6 +240,55 @@ def train(net: Net, loader: DataLoader, epochs: int = 1, lr: float = 0.01) -> fl
     return total / max(1, batches)
 
 
+def privatise(
+    update: dict[str, torch.Tensor],
+    epsilon: float,
+    *,
+    clip: float = 1.0,
+    generator: torch.Generator | None = None,
+) -> dict[str, torch.Tensor]:
+    """Clip an update's norm and add Gaussian noise inversely scaled by `epsilon`.
+
+    **This is not calibrated differential privacy and must not be described as
+    such.** There is no sensitivity analysis, no delta, and no accounting of
+    privacy loss composed across rounds -- all three are required before any
+    epsilon here means what the DP literature means by it.
+
+    What it is: a real transformation of a real update, obeying a budget the
+    policy named, so that dispatching a duty and verifying the response can be
+    demonstrated end to end on something other than a stub. A smaller epsilon
+    perturbs more, which is the direction that matters for the mechanism.
+
+    Only floating-point tensors are touched. Integer buffers -- counters like
+    `num_batches_tracked` -- carry no gradient signal and adding Gaussian noise
+    to them would corrupt the state dict rather than protect anything.
+    """
+    if epsilon <= 0:
+        raise ValueError("epsilon must be positive")
+
+    floats = [k for k, v in update.items() if v.is_floating_point()]
+    total = torch.sqrt(
+        sum((update[k].float() ** 2).sum() for k in floats)
+        + torch.tensor(0.0)
+    )
+    scale = min(1.0, clip / float(total.item() or 1.0))
+
+    out: dict[str, torch.Tensor] = {}
+    for key, value in update.items():
+        if key not in floats:
+            out[key] = value.clone()
+            continue
+        clipped = value.float() * scale
+        noise = torch.normal(
+            mean=0.0,
+            std=clip / epsilon,
+            size=tuple(clipped.shape),
+            generator=generator,
+        )
+        out[key] = (clipped + noise).to(value.dtype)
+    return out
+
+
 def evaluate(net: Net, loader: DataLoader) -> tuple[float, float]:
     """Evaluate. Returns `(loss, accuracy)`."""
     criterion = nn.CrossEntropyLoss()

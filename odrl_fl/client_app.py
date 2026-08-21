@@ -6,22 +6,43 @@ decide who trains. Declaring is the client's job rather than the server's on
 purpose -- a server that looked its clients' consent terms up in a table would
 be assuming precisely what the system is supposed to establish.
 
-Policy *duties* will later be dispatched into `configure_train`'s ConfigRecord
-and executed here (differential privacy, metric reporting), then verified
-server-side in `aggregate_train` -- so the shape of this file matters more than
-its current content: whatever a duty requires a client to do has to be
-executable at exactly these entry points.
+`train_fn` also discharges the duties the agreement dispatched, and reports
+what it did. The server drops updates whose claim does not cover the directives
+they were given, so silence is not a way to skip a duty. It remains a *claim*:
+nothing here proves the computation happened, and closing that gap needs secure
+aggregation or attestation. See `odrl_fl.duties`.
 """
 
 from __future__ import annotations
 
-from flwr.app import ArrayRecord, Context, Message, MetricRecord, RecordDict
+from flwr.app import (
+    ArrayRecord,
+    ConfigRecord,
+    Context,
+    Message,
+    MetricRecord,
+    RecordDict,
+)
 from flwr.clientapp import ClientApp
 
 from odrl_fl.corpus import generate_corpus
+from odrl_fl.duties import (
+    COMPLIANCE_KEY,
+    DIRECTIVE_KEY,
+    Compliance,
+    decode_directives,
+)
+from odrl_fl.odrl import Action
 from odrl_fl.odrl.duo import translate
 from odrl_fl.strategy import declaration
-from odrl_fl.task import Net, evaluate, load_partition, to_loaders, train
+from odrl_fl.task import (
+    Net,
+    evaluate,
+    load_partition,
+    privatise,
+    to_loaders,
+    train,
+)
 
 app = ClientApp()
 
@@ -96,18 +117,37 @@ def train_fn(msg: Message, context: Context) -> Message:
     net, trainloader, _, partition = _setup(context)
     net.load_state_dict(msg.content["arrays"].to_torch_state_dict())
 
-    epochs = int(msg.content["config"].get("local-epochs", 1))
+    config = msg.content["config"]
+    epochs = int(config.get("local-epochs", 1))
     loss = train(net, trainloader, epochs=epochs)
+
+    # Discharge whatever duties the agreement dispatched, and say what was
+    # done. The server drops updates that arrive without a matching claim, so
+    # staying silent is not a way to skip this.
+    state = net.state_dict()
+    applied: dict[str, float | None] = {}
+    for directive in decode_directives(config.get(DIRECTIVE_KEY)):
+        if directive.action == Action.ANONYMIZE.value and directive.epsilon:
+            state = privatise(state, directive.epsilon)
+            applied[directive.action] = directive.epsilon
+        else:
+            # A duty this client cannot act on locally. Reported as
+            # unaddressed rather than omitted -- the server has to be able to
+            # tell "nothing to do" from "did not answer".
+            applied[directive.action] = None
 
     reply = RecordDict(
         {
-            "arrays": ArrayRecord(net.state_dict()),
+            "arrays": ArrayRecord(state),
             "metrics": MetricRecord(
                 {
                     "train_loss": loss,
                     # FedAvg weights the average by this key.
                     "num-examples": partition.n_train,
                 }
+            ),
+            "config": ConfigRecord(
+                {COMPLIANCE_KEY: Compliance(applied=applied).encode()}
             ),
         }
     )

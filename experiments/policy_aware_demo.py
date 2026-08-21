@@ -26,9 +26,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from odrl_fl.corpus import generate_corpus
+from odrl_fl.duties import UnmetPrecondition, check_gates
 from odrl_fl.fedavg import run_fedavg
 from odrl_fl.odrl import Action
 from odrl_fl.selection import is_feasible, policy_blind_selection, requirement
+from odrl_fl.server_app import parse_evidence
 from odrl_fl.strategy import (
     Announcement,
     NoFeasibleConsortium,
@@ -79,6 +81,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--require", nargs="+", default=["use", "aggregate"])
     parser.add_argument(
+        "--evidence",
+        default="obtainConsent=IRB-2026-0142",
+        help="Evidence that preconditions were discharged, as action=reference "
+             "pairs. Pass an empty string to watch the run refuse to start.",
+    )
+    parser.add_argument(
         "--purpose",
         default="ds-cancer",
         help="Purpose the federation needs the data for. Empty means actions "
@@ -116,8 +124,34 @@ def main(argv: list[str] | None = None) -> int:
         print(f"    excluded node {node_id} -- {reason}")
     print(f"  the federation may: "
           f"{', '.join(sorted(a.value for a in admission.capability))}")
-    if admission.duties:
-        print(f"  and owes: {', '.join(admission.duties)}")
+
+    # What the agreement demands, sorted by what a system can do about it.
+    plan = admission.plan
+    print("\n  duties")
+    if plan.gates:
+        needed = sorted(d.action.value for d in plan.gates)
+        print(f"    GATE      {', '.join(needed)} -- must be evidenced before starting")
+    if plan.directives:
+        for d in plan.directives:
+            budget = f" (eps<={d.epsilon})" if d.epsilon else ""
+            print(f"    DISPATCH  {d.action}{budget} -- sent to clients each round")
+    for o in plan.outstanding:
+        owed = f"all {len(o.owed_by)} members" if len(o.owed_by) > 2 else (
+            ", ".join(o.owed_by) or "the consortium"
+        )
+        print(f"    RECORD    {o.action} -- OUTSTANDING, owed by {owed}")
+    if plan.is_trivial:
+        print("    (none)")
+
+    # The gate. A precondition cannot be discharged by the run that depends on
+    # it, so without evidence the only faithful move is to refuse to start.
+    try:
+        cleared = check_gates(plan.gates, parse_evidence(args.evidence))
+    except UnmetPrecondition as exc:
+        print(f"\n  REFUSED TO START: {exc}")
+        return 2
+    for action, reference in sorted(cleared.items()):
+        print(f"  cleared {action}, evidence {reference}")
 
     # The policy-blind comparison: same budget, chosen purely for data.
     blind = policy_blind_selection(announcements, utility, len(admission.admitted))

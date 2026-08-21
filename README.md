@@ -384,6 +384,86 @@ varies by seed and is beside the point: **deployable accuracy is 0.735 against
 0.000**. An undeployable model has no accuracy worth quoting, and what
 selection buys is the right to use the result at all.
 
+## What a federation owes, and what a system can do about it
+
+Selection settles what the consortium *may* do. The other half of an agreement
+is what it *must* do, and here the interesting result is a negative one.
+
+**Duties differ by when they are discharged, and that decides what a system can
+do about them.** Three postures:
+
+| posture | mechanism | is it enforcement? |
+|---|---|---|
+| **gate** | the run refuses to start without evidence the duty was discharged | **yes** -- the training does not happen |
+| **dispatch** | requirement goes into the training config; updates lacking a matching claim are dropped before aggregation | partly |
+| **record** | carried in an obligation ledger, attributed and open | **no** -- accountability only |
+
+### The duties real annotations produce are almost all unenforceable
+
+Across the corpus, GA4GH DUO yields exactly three duties, and **none of them is
+something a client computes during training**:
+
+| duty | from | posture | discharged |
+|---|---|---|---|
+| `obtainConsent` | DUO:0000021 IRB | gate | before the run, by an ethics committee |
+| `inform` | DUO:0000019 PUB | record | after the model exists (publish results) |
+| `transfer` | DUO:0000029 RTN | record | after (return findings to the source) |
+
+The one duty a client *could* act on mid-training -- `anonymize` under a
+`dpEpsilon` budget -- appears only in the hand-written profile fixtures, because
+**DUO has no vocabulary for it**. `tests/test_duties.py::TestTheDomainFinding`
+asserts this, so if a vocabulary change ever makes it false the tests fail and
+this section gets rewritten rather than quietly going stale.
+
+That is a claim about the domain, not about this implementation, and it points
+somewhere specific: for real data-use terms the useful machinery is provenance
+and accountability, not runtime interception. Which is what increment 8 builds.
+
+### Two limits, stated rather than buried
+
+**The attestation gap.** In the dispatch posture the server verifies that a
+client *said* it complied, never that the computation happened. A client
+reporting an epsilon it never applied is undetectable from here; closing that
+needs secure aggregation or hardware attestation. Named as future work, not
+attempted.
+
+**The noise is not calibrated differential privacy.** `task.privatise` clips the
+update norm and adds Gaussian noise scaled by the declared budget. There is no
+sensitivity analysis, no delta, and no accounting of privacy loss composed
+across rounds -- all three are needed before an epsilon means what the DP
+literature means by it. It is a real transformation obeying a policy-named
+budget, which is enough to demonstrate dispatch and verification end to end, and
+it is not a privacy guarantee.
+
+### Three design commitments
+
+**Silence fails.** A reply that reports nothing about its directives is dropped.
+On the wire it is indistinguishable from a reply that skipped the duty, and only
+one of those is safe to aggregate.
+
+**Unknown duties are recorded, never ignored.** A duty action nobody wrote a
+handler for classifies as `record` and is carried as outstanding. The
+alternative -- skipping what the code does not recognise -- would make an
+unhandled obligation look discharged.
+
+**Outstanding is never rendered as satisfied.** The ledger marks recorded duties
+open and names who owes them, so a list of unmet obligations cannot be mistaken
+for a clean bill of health.
+
+```
+duties
+  GATE      obtainConsent -- must be evidenced before starting
+  RECORD    inform -- OUTSTANDING, owed by all 7 members
+cleared obtainConsent, evidence IRB-2026-0142
+```
+
+Without evidence, the run refuses to start:
+
+```
+REFUSED TO START: the agreement requires obtainConsent before any training
+may happen, and no evidence was supplied.
+```
+
 ## Increment roadmap
 
 Ordered by **risk of invalidation**, not by build order — the expensive parts
@@ -398,7 +478,7 @@ sit behind cheap gates. Increments 0–5 involve no federated learning at all.
 | 4 | **Permission-erosion study** ← first result, **go/no-go** | **done — PROCEED** |
 | 5 | Selection with Apriori pruning; utility proxy | **done** |
 | 6 | Policy-aware `Strategy`; selection at `start()` | **done** |
-| 7 | Enforcement hooks — duties dispatched and verified | |
+| 7 | Duty enforcement: gate, dispatch, record | **done** |
 | 8 | Policy-carrying model export + provenance log | |
 | 9 | Periodic re-evaluation (expiry, count, duty violation) | |
 | 10 | Real medical dataset + experiment harness | |
