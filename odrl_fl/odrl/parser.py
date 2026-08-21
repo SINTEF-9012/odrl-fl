@@ -51,6 +51,26 @@ def _term(value: Any) -> str:
     return text
 
 
+def _identity(value: Any) -> str:
+    """Resolve a party or asset reference, leaving its namespace intact.
+
+    Deliberately *not* `_term`. `assigner`, `assignee` and `target` name
+    entities rather than vocabulary, and an identity has no canonical short
+    form to compact towards: reducing `urn:party:hospital-a` to `hospital-a`
+    discards what makes it unique and collides it with `urn:asset:hospital-a`.
+    `uid` has always been read this way; these three were not.
+
+    It matters on the wire. Increment 6 announces policies as JSON-LD between
+    contributor and server, and increment 8 hashes that serialisation into a
+    provenance record. Neither survives a parser that cannot round-trip.
+    """
+    if isinstance(value, dict):
+        value = value.get("@id") or value.get("id") or value.get("@value")
+    if value is None:
+        raise MalformedPolicy("expected an identifier, found nothing")
+    return str(value)
+
+
 def _as_list(value: Any) -> list[Any]:
     """JSON-LD permits a bare object anywhere a list is allowed."""
     if value is None:
@@ -194,7 +214,7 @@ def parse_policy(doc: dict[str, Any] | str) -> Policy:
         raise MalformedPolicy(f"policy '{uid}' contains no rules")
 
     def optional(key: str) -> str | None:
-        return _term(doc[key]) if doc.get(key) is not None else None
+        return _identity(doc[key]) if doc.get(key) is not None else None
 
     return Policy(
         uid=str(uid),

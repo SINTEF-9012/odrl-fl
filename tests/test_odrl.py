@@ -190,11 +190,24 @@ class TestJsonLdPragmatics:
         assert policy.permitted_actions == {Action.USE}
 
     def test_id_objects_are_unwrapped(self):
+        """Unwrapped, but not compacted.
+
+        Vocabulary terms get shortened -- `odrl:use` and `use` name the same
+        action. Identities do not: the namespace is what separates a party from
+        an asset that happens to share its local name.
+        """
         policy = parse_policy(
             minimal(assigner={"@id": "urn:party:hospital"}, target={"@id": "urn:asset:x"})
         )
-        assert policy.assigner == "hospital"
-        assert policy.target == "x"
+        assert policy.assigner == "urn:party:hospital"
+        assert policy.target == "urn:asset:x"
+
+    def test_identities_survive_a_serialisation_round_trip(self):
+        """The wire format for increment 6, and the hash anchor for increment 8."""
+        original = parse_policy(
+            minimal(assigner="urn:party:hospital-a", target="urn:asset:cohort-1")
+        )
+        assert parse_policy(policy_to_jsonld(original)) == original
 
     def test_typed_value_objects(self):
         con = parse_constraint(
