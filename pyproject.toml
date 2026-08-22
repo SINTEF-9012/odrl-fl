@@ -61,6 +61,10 @@ require-purpose = ""
 #     duty-evidence = "obtainConsent=IRB-2026-0142"
 duty-evidence = ""
 
+# Where the policy-carrying model is written: the weights alongside the
+# composed agreement, every contributor's declaration, and what remains owed.
+bundle-dir = "artifacts/model-bundle"
+
 
 # --- SuperLink connection --------------------------------------------------
 #

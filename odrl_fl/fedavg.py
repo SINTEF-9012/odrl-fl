@@ -54,6 +54,9 @@ class History:
     contributors: list[int]
     accuracy: list[float] = field(default_factory=list)
     loss: list[float] = field(default_factory=list)
+    #: The final global model. Carried so a caller can export the weights
+    #: alongside the terms they were trained under -- see `odrl_fl.bundle`.
+    state_dict: dict = field(default_factory=dict)
 
     @property
     def final_accuracy(self) -> float:
@@ -148,4 +151,5 @@ def run_fedavg(
         history.loss.append(loss)
         history.accuracy.append(accuracy)
 
+    history.state_dict = dict(global_model.state_dict())
     return history

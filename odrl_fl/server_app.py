@@ -13,9 +13,15 @@ Everything else -- publish results, return findings, attribute, compensate --
 can only be **recorded**, because no training run can perform it. See
 `odrl_fl.duties` for why that last category is the largest one in practice.
 
-Still to come: attaching the composed policy and the obligation ledger to the
-exported model (increment 8), and re-evaluating membership when a member
-withdraws consent mid-run (9).
+The run ends by exporting a **policy-carrying model**: the weights, the composed
+agreement, every contributor's declaration, and the ledger of what remains
+outstanding, in one verifiable bundle. That closes the loop opened by the duty
+classification -- the obligations a training run cannot discharge are exactly
+the ones whoever holds the model must, and they cannot act on what they were
+never told.
+
+Still to come: re-evaluating membership when a member withdraws consent mid-run
+(increment 9).
 
 Set `require-purpose` to see selection bite. A request naming only actions is
 nearly always satisfiable, so almost nobody gets excluded and the run resembles
@@ -32,6 +38,7 @@ from flwr.app import ArrayRecord, ConfigRecord, Context, MetricRecord
 from flwr.common.logger import log
 from flwr.serverapp import Grid, ServerApp
 
+from odrl_fl.bundle import ContributorRecord, build_manifest, export
 from odrl_fl.duties import Ledger, check_gates
 from odrl_fl.odrl import Action
 from odrl_fl.selection import requirement
@@ -167,7 +174,7 @@ def main(grid: Grid, context: Context) -> None:
     seed = int(context.run_config.get("seed", 0))
     torch.manual_seed(seed)
 
-    strategy.start(
+    result = strategy.start(
         grid=grid,
         initial_arrays=ArrayRecord(Net().state_dict()),
         num_rounds=num_rounds,
@@ -176,8 +183,36 @@ def main(grid: Grid, context: Context) -> None:
         evaluate_fn=make_central_evaluate(seed),
     )
 
-    # What the run leaves behind. Increment 8 attaches this to the exported
-    # model; until then it is at least stated rather than dropped.
-    log(INFO, "obligation ledger:")
-    for line in ledger.summary() or ["(nothing outstanding)"]:
+    # Ship the model with the terms it was built under. Separated, the terms
+    # are lost the first time the file is copied -- and the duties that survive
+    # a training run are precisely the ones only the *holder* can discharge.
+    by_node = {a.node_id: a for a in announcements}
+    records = [
+        ContributorRecord(
+            node_id=node_id,
+            policy=by_node[node_id].policy,
+            codes=by_node[node_id].codes,
+            n_train=by_node[node_id].n_train,
+        )
+        for node_id in admission.admitted
+    ]
+    manifest = build_manifest(
+        admission.agreement,
+        records,
+        request=request,
+        excluded=admission.excluded,
+        ledger=ledger,
+        metrics={
+            k: float(v)
+            for k, v in (result.evaluate_metrics_serverapp.get(num_rounds) or {}).items()
+        },
+    )
+    out = export(
+        context.run_config.get("bundle-dir", "artifacts/model-bundle"),
+        manifest,
+        result.arrays.to_torch_state_dict(),
+    )
+
+    log(INFO, "policy-carrying model written to %s", out)
+    for line in manifest.describe():
         log(INFO, "  %s", line)

@@ -10,6 +10,8 @@ dist/
 # Data and results
 data/
 results/
+# Exported policy-carrying model bundles.
+artifacts/
 *.log
 
 # Tooling

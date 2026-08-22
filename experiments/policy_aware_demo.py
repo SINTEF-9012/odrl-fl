@@ -25,10 +25,17 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from odrl_fl.bundle import (
+    ContributorRecord,
+    as_contributor_policy,
+    build_manifest,
+    export,
+    verify,
+)
 from odrl_fl.corpus import generate_corpus
-from odrl_fl.duties import UnmetPrecondition, check_gates
+from odrl_fl.duties import Ledger, UnmetPrecondition, check_gates
 from odrl_fl.fedavg import run_fedavg
-from odrl_fl.odrl import Action
+from odrl_fl.odrl import Action, LeftOperand, capability, compose
 from odrl_fl.selection import is_feasible, policy_blind_selection, requirement
 from odrl_fl.server_app import parse_evidence
 from odrl_fl.strategy import (
@@ -80,6 +87,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--alpha", type=float, default=1.0)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--require", nargs="+", default=["use", "aggregate"])
+    parser.add_argument("--bundle-dir", default="artifacts/demo-bundle")
     parser.add_argument(
         "--evidence",
         default="obtainConsent=IRB-2026-0142",
@@ -189,6 +197,63 @@ def main(argv: list[str] | None = None) -> int:
         print("  Whether the policy-blind model scores higher varies by seed and is")
         print("  beside the point -- an undeployable model has no accuracy worth")
         print("  quoting. What selection buys is the right to use the result.")
+
+    # Ship the model with the terms it was built under, and check the pairing.
+    by_node = {a.node_id: a for a in announcements}
+    manifest = build_manifest(
+        admission.agreement,
+        [
+            ContributorRecord(
+                node_id=n,
+                policy=by_node[n].policy,
+                codes=by_node[n].codes,
+                n_train=by_node[n].n_train,
+            )
+            for n in admission.admitted
+        ],
+        request=request,
+        excluded=admission.excluded,
+        ledger=Ledger(outstanding=plan.outstanding, gates_cleared=cleared),
+        metrics={"accuracy": history.final_accuracy},
+    )
+    directory = export(args.bundle_dir, manifest, history.state_dict)
+    print(f"\n  policy-carrying model written to {directory}")
+    for line in verify(directory).describe():
+        print(f"    {line}")
+    print("  verified: the recorded declarations recompose to these terms")
+
+    # The recursion. Reusing this model in another consortium composes its
+    # terms with the newcomers', and capability can only narrow -- a restricted
+    # model cannot be laundered into an unrestricted one.
+    newcomer = generate_corpus(args.nodes + 1, seed=args.seed + 99)[-1]
+    reused = compose([as_contributor_policy(manifest), newcomer.policy]).agreement
+
+    def purposes_of(policy) -> str:
+        values: set[str] = set()
+        for permission in policy.permissions:
+            for constraint in permission.constraints:
+                if constraint.left_operand is LeftOperand.PURPOSE:
+                    values |= set(constraint.right_operand)
+        return ", ".join(sorted(values)) or "unconstrained"
+
+    now_caps = sorted(a.value for a in manifest.capability)
+    then_caps = sorted(a.value for a in capability(reused))
+    now_purposes, then_purposes = purposes_of(manifest.agreement), purposes_of(reused)
+
+    print(f"\n  if this model were reused alongside {newcomer.codes[0] if newcomer.codes else 'a newcomer'}:")
+    print(f"    {'':13}{'may':<40}for")
+    print(f"    now      {', '.join(now_caps) or '--':<40}{now_purposes}")
+    print(f"    then     {', '.join(then_caps) or '--':<40}{then_purposes}")
+
+    if (now_caps, now_purposes) == (then_caps, then_purposes):
+        print("    This newcomer's terms happen to be compatible, so nothing")
+        print("    narrows here. The guarantee is one-directional, not that every")
+        print("    reuse costs something: composing can only ever remove.")
+    else:
+        print("    Reuse composed this model's terms with the newcomer's and lost")
+        print("    ground, which is the only direction available.")
+    print("    Either way a restricted model cannot be laundered into an")
+    print("    unrestricted one by training something else on it.")
     return 0
 
 

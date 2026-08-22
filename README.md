@@ -464,6 +464,74 @@ REFUSED TO START: the agreement requires obtainConsent before any training
 may happen, and no evidence was supplied.
 ```
 
+## Policy-carrying models
+
+A trained federated model is a derivative of every contributor's data, and the
+composed Agreement says what may lawfully be done with it. Separate those two
+and the terms are lost the first time the file is copied.
+
+A bundle keeps them together and makes the pairing **checkable**:
+
+```
+bundle/
+  model.pt        the weights
+  manifest.json   the agreement, every declaration, what remains owed
+```
+
+```
+model    1e94832d28ccb460
+terms    urn:agreement:2989fa843e1be36b
+built by 7 contributors
+you may  aggregate, derive, distribute, use
+cleared  obtainConsent, evidence IRB-2026-0142
+YOU OWE  inform -- to all 7 contributors
+```
+
+**This is what increment 7 pointed at.** The duties real DUO annotations produce
+are almost all discharged *after* the model exists, by whoever holds it. A
+holder who does not know what is owed cannot discharge any of them, so carrying
+the ledger with the weights is what makes those obligations actionable at all.
+
+### Verification is substantive
+
+`verify` does not check a digest against itself. It **recomposes** the agreement
+from the contributor declarations recorded in the manifest and confirms the
+result matches what the manifest claims, then checks the weights still hash to
+what was recorded. Widening a purpose therefore requires forging every
+contributor's declaration to justify the change:
+
+```
+VerificationError: the recorded contributor policies do not compose to the
+recorded agreement
+```
+
+The bundle is self-contained -- no registry, no external state to consult.
+
+**What it is not: signed.** A forger who rewrites the declarations *and* the
+agreement consistently produces a bundle that verifies.
+`test_an_unsigned_manifest_can_be_rewritten_wholesale` asserts exactly that, so
+the limit is never mistaken for a guarantee. Detection covers accident and
+one-sided edits; closing the rest needs signatures over the digest and a key
+distribution story.
+
+### Policy-carrying is recursive
+
+An Agreement is a Policy, so a bundle's agreement composes straight back in when
+the model is reused. Capability can only narrow -- **a restricted model cannot
+be laundered into an unrestricted one by training something else on it.**
+
+That recursion is what makes the term mean something, and it is also what forced
+a fix in the algebra. Composition used to apply an exclusion and then discard
+it, because `difference` is conservative (`world \ EU` is just `world`, since
+"EU except DE" is not expressible). Composing all of `isAnyOf {world}`,
+`isNoneOf {EU}` and `isAnyOf {EU}` correctly denies the action, but composing
+the first two into an Agreement and then adding the third **permitted** it --
+non-associativity in the over-permissive direction, found by Hypothesis. An
+Agreement that had silently dropped a carve-out could license a reuse the
+contributors jointly forbade. Composition now keeps the narrowed permission and
+the exclusion side by side. No published number moves: neither study
+re-composes an Agreement.
+
 ## Increment roadmap
 
 Ordered by **risk of invalidation**, not by build order — the expensive parts
@@ -479,7 +547,7 @@ sit behind cheap gates. Increments 0–5 involve no federated learning at all.
 | 5 | Selection with Apriori pruning; utility proxy | **done** |
 | 6 | Policy-aware `Strategy`; selection at `start()` | **done** |
 | 7 | Duty enforcement: gate, dispatch, record | **done** |
-| 8 | Policy-carrying model export + provenance log | |
+| 8 | Policy-carrying model export + provenance log | **done** |
 | 9 | Periodic re-evaluation (expiry, count, duty violation) | |
 | 10 | Real medical dataset + experiment harness | |
 | 11 | Results and figures | |
