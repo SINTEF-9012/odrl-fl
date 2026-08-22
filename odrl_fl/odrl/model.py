@@ -108,6 +108,11 @@ class Action(str, Enum):
     INFORM = "inform"
     COMPENSATE = "compensate"
     DELETE = "delete"
+    #: Profile extension. The GDC open-access terms prohibit attempting to
+    #: re-identify a participant, which is the only enforceable condition on
+    #: the tier of genomics data anyone may download -- and neither ODRL core
+    #: nor DUO defines a term for it. See `odrl_fl.tcga`.
+    IDENTIFY = "identify"
 
 
 class LeftOperand(str, Enum):

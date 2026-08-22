@@ -7,10 +7,18 @@ baseline to attach to.
 The choice is deliberate rather than lazy. Later work sweeps data heterogeneity
 as an independent variable, and a fixed real dataset gives no dial to turn:
 `alpha` below parameterises a Dirichlet label skew, from near-IID (`alpha` large)
-to pathological (`alpha` small). A real federated medical dataset --
-Fed-TCGA-BRCA is the current candidate, since its dbGaP controlled-access
-heritage means real Data Use Ontology codes can be cited for it -- swaps in
-behind `load_partition` without anything else changing.
+to pathological (`alpha` small).
+
+The real cohort landed at increment 10 and lives in `odrl_fl.tcga`: TCGA-BRCA,
+partitioned by the source sites the data already carried. It sits alongside this
+module rather than replacing it, because the heterogeneity dial is what the
+sweeps vary and a fixed cohort has none.
+
+One expectation recorded here did not survive contact: this file used to say
+Fed-TCGA-BRCA would supply citable Data Use Ontology codes through its dbGaP
+heritage. It does not. The FLamby cohort is the *open-access* GDC clinical tier
+-- unrestricted data only, with the controlled genetic component excluded -- so
+no DUO codes attach to it. See `odrl_fl.tcga` for what can be cited instead.
 
 `load_partition` is therefore the seam. Everything downstream addresses data
 only through it.

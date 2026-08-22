@@ -590,6 +590,85 @@ Departures travel in the bundle, because a holder needs to know:
 NOTE     node 9 left at round 3 (withdrew); its data is still in these weights
 ```
 
+## TCGA-BRCA: what real data settles, and what it does not
+
+Every number above came from synthetic data split by a Dirichlet draw. Increment
+10 runs the same machinery on **1096 TCGA breast-cancer patients**, partitioned
+the way the data already was: each patient id carries a Tissue Source Site code,
+and those map to named hospitals -- University of Pittsburgh, Walter Reed,
+Roswell Park, Mayo, Greater Poland Cancer Center. 16 institutions hold at least
+20 patients, with volumes from 150 down to 20. The task is the one the data
+supports: a Cox proportional-hazards model scored by Harrell's C-index, 13.8% of
+patients having an observed event.
+
+### A premise that did not survive
+
+This README used to say Fed-TCGA-BRCA was the right cohort *because* its dbGaP
+controlled-access heritage would let real DUO codes be cited rather than
+sampled. **That is wrong**, and checking it was the first thing increment 10
+did. The FLamby cohort is the *open-access* GDC clinical tier: unrestricted data
+only, with the controlled genetic component deliberately excluded. No dbGaP Data
+Use Limitations attach to these rows and there are no DUO codes to cite.
+
+What can be cited is the GDC open-access policy, and it is thin — no purpose
+limitation, and one prohibition, on attempting to re-identify a participant.
+Expressing even that needs `identify`, which **neither ODRL core nor DUO
+defines**; it is a profile extension here. The single enforceable term on the
+most widely used open genomics resource has no standard vocabulary term.
+
+### The real terms do not erode
+
+```
+one institution   ['aggregate', 'derive', 'distribute', 'use']
+all 16 composed   ['aggregate', 'derive', 'distribute', 'use']
+```
+
+Sixteen copies of a permissive policy compose to itself. Erosion needs
+heterogeneous conditions and the open tier has none — which is precisely why the
+phenomenon lives in controlled access, and why it cannot be demonstrated on data
+anyone can download. Heterogeneity in the *terms* therefore stays modelled, now
+attached to real institutions with real patient counts.
+
+### The dataset is too small to settle model quality
+
+| | C-index |
+|---|---|
+| centralised, data pooled | 0.774 |
+| federated, all 16 sites | 0.643 |
+| median single institution | 0.557 |
+| bootstrap 95% CI on one estimate | **±0.11** |
+
+With 40 events in the held-out fold, a single C-index carries roughly ±0.11. The
+difference between policy-aware and policy-blind consortia is ~0.01 — an order
+of magnitude below the noise. More seeds do not help; the limit is the cohort.
+
+**So the results split cleanly.** Anything combinatorial is settled, because it
+follows from composing declared terms and never touches a metric:
+
+| | policy-blind | policy-aware |
+|---|---|---|
+| permitted to use its own model | **20%** | **100%** |
+| deployable C-index | 0.114 | 0.590 |
+
+Anything about model quality is not settled, and the honest answer is that
+answering it needs a larger cohort — which for this disease means
+controlled-access data, the same tier where the interesting policies live.
+
+### Federated Cox loses to centralised, for a reason
+
+The federated model (0.643) falls well short of pooling (0.774), and the gap
+does not close with more rounds. **The Cox partial likelihood is not a sum over
+clients**: its risk set spans every patient still at risk at each event time, so
+a client computing the loss over its own cohort optimises a different objective
+than the federation's. Andreux et al. (2020) reformulate to discrete time for
+exactly this reason; naive FedAvg here does not. It does not disturb the
+comparisons above — both consortia use the same trainer — but these C-index
+figures are a floor for this dataset, not its ceiling.
+
+The cohort is fetched on demand and gitignored, not vendored: it belongs to the
+GDC. Users must not attempt to re-identify participants
+([GDC policies](https://gdc.cancer.gov/about-gdc/gdc-policies)).
+
 ## Increment roadmap
 
 Ordered by **risk of invalidation**, not by build order — the expensive parts
@@ -607,7 +686,7 @@ sit behind cheap gates. Increments 0–5 involve no federated learning at all.
 | 7 | Duty enforcement: gate, dispatch, record | **done** |
 | 8 | Policy-carrying model export + provenance log | **done** |
 | 9 | Re-evaluation: expiry, withdrawal, duty breach | **done** |
-| 10 | Real medical dataset + experiment harness | |
+| 10 | Real medical dataset (TCGA-BRCA) + harness | **done** |
 | 11 | Results and figures | |
 
 Increment 4 is the decision point. If capability erosion turns out to be either
@@ -641,6 +720,12 @@ python experiments/run_sensitivity.py
 
 ```bash
 python experiments/run_selection.py
+```
+
+Real patients, real institutions (fetches ~117 KB from the GDC via FLamby):
+
+```bash
+python experiments/run_tcga.py
 ```
 
 Selection through to a trained model, no federation required:
@@ -686,9 +771,8 @@ simulation federation should work directly.
 Dirichlet label skew whose `alpha` dials heterogeneity from near-IID to
 pathological. A fixed real dataset gives no such dial, and heterogeneity is an
 independent variable in the evaluation. `load_partition()` is the seam where a
-real federated medical dataset swaps in at increment 10 — Fed-TCGA-BRCA is the
-current candidate, because its dbGaP controlled-access heritage means real DUO
-codes can be cited for it rather than only sampled.
+real federated medical dataset swapped in at increment 10 — see
+[TCGA-BRCA](#tcga-brca-what-real-data-settles-and-what-it-does-not) below.
 
 Two properties everything downstream depends on, both pinned by tests:
 
