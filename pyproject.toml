@@ -65,6 +65,12 @@ duty-evidence = ""
 # composed agreement, every contributor's declaration, and what remains owed.
 bundle-dir = "artifacts/model-bundle"
 
+# Re-ask every active node for its terms between rounds, and drop the ones
+# that have withdrawn, lapsed, or breached a duty. Costs one query round per
+# training round; turn it off only for a run short enough that consent
+# cannot plausibly change during it.
+recheck-consent = true
+
 
 # --- SuperLink connection --------------------------------------------------
 #

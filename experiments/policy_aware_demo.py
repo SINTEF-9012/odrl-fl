@@ -13,7 +13,13 @@ The comparison is against the policy-blind consortium of the same size -- the
 standard practice of picking whoever has the most useful data. It often trains
 the better model, and is usually not permitted to use it.
 
+A member also withdraws partway through, which is where the licence question
+gets sharp: their departure widens what the *remaining* members would permit,
+while their data stays in the weights. Seed 0 has no such member; the second
+invocation below picks one that does.
+
     python experiments/policy_aware_demo.py
+    python experiments/policy_aware_demo.py --seed 6 --withdraw 5
     python experiments/policy_aware_demo.py --purpose research --nodes 12
 """
 
@@ -21,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -35,6 +42,13 @@ from odrl_fl.bundle import (
 from odrl_fl.corpus import generate_corpus
 from odrl_fl.duties import Ledger, UnmetPrecondition, check_gates
 from odrl_fl.fedavg import run_fedavg
+from odrl_fl.lifecycle import (
+    Membership,
+    governing_agreement,
+    reevaluate,
+    widened_purposes,
+    withdraw,
+)
 from odrl_fl.odrl import Action, LeftOperand, capability, compose
 from odrl_fl.selection import is_feasible, policy_blind_selection, requirement
 from odrl_fl.server_app import parse_evidence
@@ -88,6 +102,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--require", nargs="+", default=["use", "aggregate"])
     parser.add_argument("--bundle-dir", default="artifacts/demo-bundle")
+    parser.add_argument(
+        "--withdraw", type=int, default=None,
+        help="Node that withdraws consent partway through. Defaults to the "
+             "last admitted member.",
+    )
+    parser.add_argument("--withdraw-round", type=int, default=3)
     parser.add_argument(
         "--evidence",
         default="obtainConsent=IRB-2026-0142",
@@ -198,10 +218,48 @@ def main(argv: list[str] | None = None) -> int:
         print("  beside the point -- an undeployable model has no accuracy worth")
         print("  quoting. What selection buys is the right to use the result.")
 
-    # Ship the model with the terms it was built under, and check the pairing.
+    # Consent is not settled once. Somebody withdraws partway through the run.
     by_node = {a.node_id: a for a in announcements}
+    policies = {n: by_node[n].policy for n in admission.admitted}
+    membership = Membership.starting(admission.admitted)
+    ledger = Ledger(outstanding=plan.outstanding, gates_cleared=cleared)
+
+    leaver = args.withdraw if args.withdraw is not None else admission.admitted[-1]
+    if leaver in policies:
+        print(f"\n  at round {args.withdraw_round}, node {leaver} withdraws consent")
+        outcome = reevaluate(
+            membership,
+            {**policies, leaver: withdraw(policies[leaver])},
+            server_round=args.withdraw_round,
+            at=datetime.now(UTC).date(),
+            request=request,
+        )
+        membership = outcome.membership
+        for record in outcome.departed:
+            ledger.depart(
+                record.server_round, record.node_id,
+                record.reason.value, record.detail,
+            )
+        print(f"    still training : {list(membership.active)}")
+        print(f"    data in model  : {list(membership.contributed)}  <- unchanged")
+
+        governing, extra = widened_purposes(policies, membership)
+        print(f"\n    the model may be used for : {', '.join(sorted(governing)) or 'nothing'}")
+        if extra:
+            print("    the remaining members alone would allow, additionally:")
+            print(f"      {', '.join(sorted(extra))}")
+            print("    Recomposing over who is left would claim those, by correct")
+            print(f"    reasoning from a premise that just lapsed: node {leaver}'s data")
+            print("    is still in the weights, and it has withdrawn. The licence")
+            print("    follows the contribution set, so the model claims none of it.")
+        else:
+            print("    Nothing widens at this seed -- the departing member was not")
+            print("    the binding constraint. The guarantee is one-directional.")
+
+    # Ship the model with the terms it was built under, and check the pairing.
+    # Composed over everyone whose data is in the weights, not over who is left.
     manifest = build_manifest(
-        admission.agreement,
+        governing_agreement(policies, membership),
         [
             ContributorRecord(
                 node_id=n,
@@ -209,11 +267,11 @@ def main(argv: list[str] | None = None) -> int:
                 codes=by_node[n].codes,
                 n_train=by_node[n].n_train,
             )
-            for n in admission.admitted
+            for n in membership.contributed
         ],
         request=request,
         excluded=admission.excluded,
-        ledger=Ledger(outstanding=plan.outstanding, gates_cleared=cleared),
+        ledger=ledger,
         metrics={"accuracy": history.final_accuracy},
     )
     directory = export(args.bundle_dir, manifest, history.state_dict)

@@ -30,7 +30,7 @@ Python 3.13, so no test on this machine can start one.
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from logging import INFO
 
@@ -57,6 +57,7 @@ from odrl_fl.duties import (
     plan_duties,
     verify,
 )
+from odrl_fl.lifecycle import Membership, Reevaluation
 from odrl_fl.odrl import (
     Action,
     ODRLError,
@@ -66,6 +67,10 @@ from odrl_fl.odrl import (
     policy_to_jsonld,
 )
 from odrl_fl.selection import SelectionResult, UtilityFn, search
+
+#: Called at the top of each round to re-check membership. Takes the current
+#: membership, the round number, and the running count of duty breaches.
+RecheckFn = Callable[[Membership, int, Mapping[int, int]], Reevaluation]
 
 #: Keys in the declaration record. Defined once and used by both ends, so the
 #: wire format has a single definition rather than two that drift apart.
@@ -335,12 +340,16 @@ class PolicyAwareFedAvg(FedAvg):
         admitted: Sequence[int],
         directives: Sequence[Directive] = (),
         ledger: Ledger | None = None,
+        recheck: RecheckFn | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self._admitted = tuple(dict.fromkeys(admitted))
         self._directives = tuple(directives)
         self._ledger = ledger if ledger is not None else Ledger()
+        self._membership = Membership.starting(self._admitted)
+        self._recheck = recheck
+        self._breaches: dict[int, int] = {}
         if not self._admitted:
             raise ValueError(
                 "a policy-aware federation needs at least one admitted node; "
@@ -349,7 +358,13 @@ class PolicyAwareFedAvg(FedAvg):
 
     @property
     def admitted(self) -> tuple[int, ...]:
+        """Who was admitted at the start. See `membership` for who trains now."""
         return self._admitted
+
+    @property
+    def membership(self) -> Membership:
+        """Who trains next, and whose data is already in the weights."""
+        return self._membership
 
     @property
     def ledger(self) -> Ledger:
@@ -358,7 +373,7 @@ class PolicyAwareFedAvg(FedAvg):
     def _addressed(self, record: RecordDict, message_type: str) -> list[Message]:
         return [
             Message(content=record, message_type=message_type, dst_node_id=node_id)
-            for node_id in self._admitted
+            for node_id in self._membership.active
         ]
 
     def configure_train(
@@ -366,6 +381,31 @@ class PolicyAwareFedAvg(FedAvg):
     ) -> Iterable[Message]:
         if self.fraction_train == 0.0:
             return []
+
+        # Consent is not settled once. Before each round, check whether anybody
+        # has withdrawn, lapsed, or breached a duty often enough to be dropped.
+        # Membership can only shrink here; whose data is already in the weights
+        # cannot change, which is what keeps the licence honest.
+        if self._recheck is not None:
+            outcome = self._recheck(self._membership, server_round, self._breaches)
+            self._membership = outcome.membership
+            for record in outcome.departed:
+                self._ledger.depart(
+                    record.server_round,
+                    record.node_id,
+                    record.reason.value,
+                    record.detail,
+                )
+                log(INFO, "round %s: node %s left -- %s (%s)",
+                    record.server_round, record.node_id,
+                    record.reason.value, record.detail)
+            if outcome.widened:
+                # Reported, never acted on. See `odrl_fl.lifecycle`.
+                log(INFO,
+                    "the remaining members alone would now permit %s; the model "
+                    "may not, because the departed members' data is in it",
+                    ", ".join(sorted(a.value for a in outcome.widened)))
+
         config["server-round"] = server_round
         # Dispatch the duties a client can act on. Sent every round rather than
         # once at setup: a client joining late, or restarting, must not end up
@@ -400,6 +440,7 @@ class PolicyAwareFedAvg(FedAvg):
                 kept.append(reply)
             else:
                 node_id = reply.metadata.src_node_id
+                self._breaches[node_id] = self._breaches.get(node_id, 0) + 1
                 self._ledger.reject(server_round, node_id, reason)
                 log(INFO, "round %s: dropped node %s -- %s", server_round, node_id, reason)
 

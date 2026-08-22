@@ -20,8 +20,12 @@ classification -- the obligations a training run cannot discharge are exactly
 the ones whoever holds the model must, and they cannot act on what they were
 never told.
 
-Still to come: re-evaluating membership when a member withdraws consent mid-run
-(increment 9).
+Between rounds it **re-checks consent**. A member whose time limit lapsed,
+who withdrew, who stopped answering, or who repeatedly failed a dispatched duty
+is dropped from future rounds. What it does *not* do is recompose the licence
+over whoever is left: a departure widens what the remaining members alone would
+permit, while the departed member's data stays in the weights. The model's terms
+follow the contribution set. See `odrl_fl.lifecycle`.
 
 Set `require-purpose` to see selection bite. A request naming only actions is
 nearly always satisfiable, so almost nobody gets excluded and the run resembles
@@ -31,6 +35,7 @@ requirement is weak, selection has little to do.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from logging import INFO
 
 import torch
@@ -40,6 +45,7 @@ from flwr.serverapp import Grid, ServerApp
 
 from odrl_fl.bundle import ContributorRecord, build_manifest, export
 from odrl_fl.duties import Ledger, check_gates
+from odrl_fl.lifecycle import governing_agreement, reevaluate
 from odrl_fl.odrl import Action
 from odrl_fl.selection import requirement
 from odrl_fl.strategy import (
@@ -125,6 +131,7 @@ def main(grid: Grid, context: Context) -> None:
     num_rounds = int(context.run_config.get("num-server-rounds", 5))
     local_epochs = int(context.run_config.get("local-epochs", 1))
     fraction_train = float(context.run_config.get("fraction-train", 1.0))
+    recheck_enabled = bool(context.run_config.get("recheck-consent", True))
 
     # What this federation needs to be able to do. Naming a purpose is what
     # makes the requirement bite -- see the module docstring.
@@ -163,10 +170,30 @@ def main(grid: Grid, context: Context) -> None:
         outstanding=admission.plan.outstanding, gates_cleared=cleared
     )
 
+    # Consent is not settled once. Between rounds the server re-asks every
+    # active node and drops the ones that have withdrawn, lapsed, or breached a
+    # duty too often. Membership can only shrink; the *contribution* set cannot,
+    # because a round that has happened cannot be unhappened.
+    declared = {a.node_id: a.policy for a in announcements}
+
+    def recheck(membership, server_round, breaches):
+        fresh, gone = collect_announcements(grid)
+        policies = {**declared, **{a.node_id: a.policy for a in fresh}}
+        return reevaluate(
+            membership,
+            policies,
+            server_round=server_round,
+            at=datetime.now(UTC).date(),
+            request=request,
+            unreachable=tuple(gone),
+            breaches=breaches,
+        )
+
     strategy = PolicyAwareFedAvg(
         admitted=admission.admitted,
         directives=admission.plan.directives,
         ledger=ledger,
+        recheck=recheck if recheck_enabled else None,
         fraction_train=fraction_train,
         fraction_evaluate=fraction_train,
     )
@@ -187,6 +214,7 @@ def main(grid: Grid, context: Context) -> None:
     # are lost the first time the file is copied -- and the duties that survive
     # a training run are precisely the ones only the *holder* can discharge.
     by_node = {a.node_id: a for a in announcements}
+    membership = strategy.membership
     records = [
         ContributorRecord(
             node_id=node_id,
@@ -194,10 +222,18 @@ def main(grid: Grid, context: Context) -> None:
             codes=by_node[node_id].codes,
             n_train=by_node[node_id].n_train,
         )
-        for node_id in admission.admitted
+        for node_id in membership.contributed
+        if node_id in by_node
     ]
+    # Composed over everyone whose data is in the weights, *not* over who is
+    # still training. A departure widens what the remaining members alone would
+    # permit, and using that as the licence would grant rights nobody gave for
+    # data already trained in. See `odrl_fl.lifecycle`.
     manifest = build_manifest(
-        admission.agreement,
+        governing_agreement(
+            {n: by_node[n].policy for n in membership.contributed if n in by_node},
+            membership,
+        ),
         records,
         request=request,
         excluded=admission.excluded,

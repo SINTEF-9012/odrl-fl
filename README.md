@@ -532,6 +532,64 @@ contributors jointly forbade. Composition now keeps the narrowed permission and
 the exclusion side by side. No published number moves: neither study
 re-composes an Agreement.
 
+## Consent changes: membership over time
+
+Every increment so far treated a federation as a decision made once. Real
+consent is not. A time limit lapses mid-run, an institution withdraws, a member
+stops evidencing a duty it agreed to. The server now re-asks every active node
+between rounds and drops the ones that no longer qualify -- withdrawn, expired,
+unreachable, or in repeated breach. Undoing a *past* round would be machine
+unlearning, which is a different research problem.
+
+That conservative response creates a trap, and avoiding it is the increment.
+
+### Departure widens the rights of whoever is left
+
+Capability is anti-monotone, so removing a contributor can only **widen** what
+the rest may do -- the restrictive member takes their restriction with them.
+Recomposing over current membership therefore yields a *broader* agreement than
+the run started under, and every step of that reasoning is correct.
+
+It is still wrong, because the departed member's data is already in the weights.
+Rounds 1..k were trained on it and no later round removes it. An agreement
+composed over who is left would license uses of that data which its owner never
+granted -- reached by correct reasoning from a premise that quietly stopped
+holding.
+
+So the licence follows the **contribution set**, not the active set:
+
+| | |
+|---|---|
+| `active` | who trains in the next round — may shrink |
+| `contributed` | whose data is in the weights — only ever grows |
+
+`governing_agreement` composes over `contributed` and is the model's licence.
+`active_agreement` composes over `active` and exists *only* so the gap can be
+measured and reported. They are separate functions rather than a flag, because
+using the second one as a licence is the whole mistake.
+
+### How often it matters
+
+Over 20 corpora of 10 nodes, counting consortia containing at least one member
+whose departure would widen the licence:
+
+| requirement | consortia at risk | members whose departure widens |
+|---|---|---|
+| actions only | **13/20** | 13/168 (8%) |
+| `purpose = ds-cancer` | 8/20 | 8/161 (5%) |
+| `purpose = research` | 0/20 | 0/107 (0%) |
+
+Not an edge case at the loose end: two thirds of consortia contain such a
+member. The trend is the same one increment 5 found from the other side -- a
+tighter request admits a more homogeneous consortium, and at the tightest there
+is no restrictive member left to leave, so nothing can widen.
+
+Departures travel in the bundle, because a holder needs to know:
+
+```
+NOTE     node 9 left at round 3 (withdrew); its data is still in these weights
+```
+
 ## Increment roadmap
 
 Ordered by **risk of invalidation**, not by build order — the expensive parts
@@ -548,7 +606,7 @@ sit behind cheap gates. Increments 0–5 involve no federated learning at all.
 | 6 | Policy-aware `Strategy`; selection at `start()` | **done** |
 | 7 | Duty enforcement: gate, dispatch, record | **done** |
 | 8 | Policy-carrying model export + provenance log | **done** |
-| 9 | Periodic re-evaluation (expiry, count, duty violation) | |
+| 9 | Re-evaluation: expiry, withdrawal, duty breach | **done** |
 | 10 | Real medical dataset + experiment harness | |
 | 11 | Results and figures | |
 

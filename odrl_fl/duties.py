@@ -339,13 +339,26 @@ class Ledger:
     outstanding: tuple[Obligation, ...] = ()
     gates_cleared: Mapping[str, str] = field(default_factory=dict)
     rejections: list[tuple[int, int, str]] = field(default_factory=list)
+    #: Members that stopped training partway: (round, node, reason, detail).
+    #: Their data stays in the model, so this is provenance rather than
+    #: bookkeeping -- see `odrl_fl.lifecycle`.
+    departures: list[tuple[int, int, str, str]] = field(default_factory=list)
 
     def reject(self, server_round: int, node_id: int, reason: str) -> None:
         self.rejections.append((server_round, node_id, reason))
 
+    def depart(
+        self, server_round: int, node_id: int, reason: str, detail: str = ""
+    ) -> None:
+        self.departures.append((server_round, node_id, reason, detail))
+
     @property
     def rejected_nodes(self) -> frozenset[int]:
         return frozenset(node for _, node, _ in self.rejections)
+
+    @property
+    def departed_nodes(self) -> frozenset[int]:
+        return frozenset(node for _, node, _, _ in self.departures)
 
     def summary(self) -> list[str]:
         lines = []
@@ -356,4 +369,9 @@ class Ledger:
             lines.append(f"{obligation.action}: OUTSTANDING, owed by {owed}")
         for server_round, node_id, reason in self.rejections:
             lines.append(f"round {server_round}: dropped node {node_id} -- {reason}")
+        for server_round, node_id, reason, detail in self.departures:
+            lines.append(
+                f"round {server_round}: node {node_id} left ({reason}) -- {detail}; "
+                "its data remains in the model"
+            )
         return lines

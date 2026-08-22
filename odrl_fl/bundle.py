@@ -133,6 +133,9 @@ class Manifest:
     outstanding: tuple[Obligation, ...] = ()
     gates_cleared: Mapping[str, str] = field(default_factory=dict)
     rejections: tuple[tuple[int, int, str], ...] = ()
+    #: Members that stopped training partway. Their data is still in the
+    #: weights, which is why they remain in `contributors`.
+    departures: tuple[tuple[int, int, str, str], ...] = ()
     model_digest: str = ""
     metrics: Mapping[str, float] = field(default_factory=dict)
     created: str = ""
@@ -172,6 +175,13 @@ class Manifest:
             "rejected_updates": [
                 {"round": r, "node_id": n, "reason": why}
                 for r, n, why in self.rejections
+            ],
+            # Recorded because exclusion is forward-only: a member who left at
+            # round k still contributed to rounds 1..k, and the holder of this
+            # model needs to know that removing them did not remove their data.
+            "departures": [
+                {"round": r, "node_id": n, "reason": why, "detail": detail}
+                for r, n, why, detail in self.departures
             ],
             "model_digest": self.model_digest,
             "metrics": dict(self.metrics),
@@ -215,6 +225,15 @@ class Manifest:
                 (int(r["round"]), int(r["node_id"]), str(r["reason"]))
                 for r in payload.get("rejected_updates") or ()
             ),
+            departures=tuple(
+                (
+                    int(d["round"]),
+                    int(d["node_id"]),
+                    str(d["reason"]),
+                    str(d.get("detail") or ""),
+                )
+                for d in payload.get("departures") or ()
+            ),
             model_digest=str(payload.get("model_digest") or ""),
             metrics=dict(payload.get("metrics") or {}),
             created=str(payload.get("created") or ""),
@@ -243,6 +262,11 @@ class Manifest:
             lines.append(f"YOU OWE  {obligation.action} -- to {owed}")
         if self.rejections:
             lines.append(f"dropped  {len(self.rejections)} update(s) for duty failures")
+        for r, node_id, reason, _ in self.departures:
+            lines.append(
+                f"NOTE     node {node_id} left at round {r} ({reason}); its data "
+                "is still in these weights"
+            )
         return lines
 
 
@@ -266,6 +290,7 @@ def build_manifest(
         outstanding=tuple(ledger.outstanding),
         gates_cleared=dict(ledger.gates_cleared),
         rejections=tuple(ledger.rejections),
+        departures=tuple(ledger.departures),
         model_digest=model_digest,
         metrics=dict(metrics or {}),
         created=created or datetime.now(UTC).isoformat(timespec="seconds"),
