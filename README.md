@@ -150,6 +150,8 @@ places where DUO and ODRL do not line up cleanly are visible.
 
 ## The result: permission erosion is real
 
+![Permission erosion under composition](results/figures/erosion.svg)
+
 ```bash
 python experiments/run_erosion.py
 ```
@@ -245,6 +247,8 @@ sufficient — which is precisely the argument for selecting explicitly, and why
 selection is a set-level search rather than a filter.
 
 ## Selection: recovering a usable consortium
+
+![Policy-blind selection wins on paper and loses in deployment](results/figures/selection.svg)
 
 Erosion says a federation assembled without regard to policy usually cannot
 lawfully use the model it produces. Selection turns that into a search: among
@@ -592,6 +596,8 @@ NOTE     node 9 left at round 3 (withdrew); its data is still in these weights
 
 ## TCGA-BRCA: what real data settles, and what it does not
 
+![TCGA-BRCA results](results/figures/tcga.svg)
+
 Every number above came from synthetic data split by a Dirichlet draw. Increment
 10 runs the same machinery on **1096 TCGA breast-cancer patients**, partitioned
 the way the data already was: each patient id carries a Tissue Source Site code,
@@ -669,6 +675,34 @@ The cohort is fetched on demand and gitignored, not vendored: it belongs to the
 GDC. Users must not attempt to re-identify participants
 ([GDC policies](https://gdc.cancer.gov/about-gdc/gdc-policies)).
 
+## Figures
+
+Five figures, rendered from the committed CSVs by
+[`experiments/make_figures.py`](experiments/make_figures.py):
+
+| figure | claim | source |
+|---|---|---|
+| [`erosion.svg`](results/figures/erosion.svg) | composition monotonically loses permissions | `erosion.csv` |
+| [`purpose-retention.svg`](results/figures/purpose-retention.svg) | purpose collapses faster than action capability | `erosion.csv` |
+| [`sensitivity.svg`](results/figures/sensitivity.svg) | the collapse survives changing the assignment model | `sensitivity.csv` |
+| [`selection.svg`](results/figures/selection.svg) | policy-blind selection wins on paper, loses deployed | `selection.csv` |
+| [`tcga.svg`](results/figures/tcga.svg) | on real data, only the combinatorial result separates | `tcga.csv` |
+
+```bash
+python experiments/make_figures.py
+```
+
+They are built **from the result CSVs, not by re-running the experiments**, so a
+figure cannot quietly disagree with the numbers the repository claims. Re-run an
+experiment, re-run this, and the figure follows.
+
+Rendering is [a few hundred lines of SVG generation](odrl_fl/figures.py) rather
+than matplotlib. The reason is the same one behind everything else here: SVG is
+vector, tiny, deterministic, and diffable, so a figure whose numbers changed
+shows up in `git diff` as changed numbers instead of an opaque binary blob.
+Colours are Okabe-Ito and every series also carries a dash pattern, so the
+figures survive both colour blindness and greyscale printing.
+
 ## Increment roadmap
 
 Ordered by **risk of invalidation**, not by build order — the expensive parts
@@ -687,7 +721,7 @@ sit behind cheap gates. Increments 0–5 involve no federated learning at all.
 | 8 | Policy-carrying model export + provenance log | **done** |
 | 9 | Re-evaluation: expiry, withdrawal, duty breach | **done** |
 | 10 | Real medical dataset (TCGA-BRCA) + harness | **done** |
-| 11 | Results and figures | |
+| 11 | Results and figures | **done** |
 
 Increment 4 is the decision point. If capability erosion turns out to be either
 trivial (almost nothing erodes) or degenerate (everything collapses at two

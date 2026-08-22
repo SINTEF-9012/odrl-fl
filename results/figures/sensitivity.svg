@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 450" width="720" height="450" font-family="Helvetica, Arial, sans-serif">
+<rect width="720" height="450" fill="#ffffff"/>
+<text x="70" y="24" font-size="15" font-weight="600" fill="#1a1a1a">The collapse does not depend on how policies are assigned</text>
+<text x="70" y="44" font-size="11.5" fill="#6b6b6b">Purpose retention under seven models of which institution holds which terms</text>
+<line x1="70" y1="338.0" x2="700" y2="338.0" stroke="#e4e4e4" stroke-width="1"/>
+<text x="61" y="341.5" font-size="11" text-anchor="end" fill="#6b6b6b">0%</text>
+<line x1="70" y1="280.8" x2="700" y2="280.8" stroke="#e4e4e4" stroke-width="1"/>
+<text x="61" y="284.3" font-size="11" text-anchor="end" fill="#6b6b6b">20%</text>
+<line x1="70" y1="223.6" x2="700" y2="223.6" stroke="#e4e4e4" stroke-width="1"/>
+<text x="61" y="227.1" font-size="11" text-anchor="end" fill="#6b6b6b">40%</text>
+<line x1="70" y1="166.4" x2="700" y2="166.4" stroke="#e4e4e4" stroke-width="1"/>
+<text x="61" y="169.9" font-size="11" text-anchor="end" fill="#6b6b6b">60%</text>
+<line x1="70" y1="109.2" x2="700" y2="109.2" stroke="#e4e4e4" stroke-width="1"/>
+<text x="61" y="112.7" font-size="11" text-anchor="end" fill="#6b6b6b">80%</text>
+<line x1="70" y1="52.0" x2="700" y2="52.0" stroke="#e4e4e4" stroke-width="1"/>
+<text x="61" y="55.5" font-size="11" text-anchor="end" fill="#6b6b6b">100%</text>
+<text x="202.6" y="356" font-size="11" text-anchor="middle" fill="#6b6b6b">5</text>
+<text x="368.4" y="356" font-size="11" text-anchor="middle" fill="#6b6b6b">10</text>
+<text x="534.2" y="356" font-size="11" text-anchor="middle" fill="#6b6b6b">15</text>
+<text x="700.0" y="356" font-size="11" text-anchor="middle" fill="#6b6b6b">20</text>
+<line x1="70" y1="338" x2="700" y2="338" stroke="#1a1a1a" stroke-width="1.2"/>
+<text x="16" y="195.0" font-size="11.5" fill="#1a1a1a" text-anchor="middle" transform="rotate(-90 16 195.0)">purpose retained</text>
+<text x="385.0" y="378" font-size="11.5" text-anchor="middle" fill="#1a1a1a">contributors in the federation</text>
+<polyline points="70.0,159.5 136.3,232.9 202.6,273.1 368.4,305.8 700.0,331.1" fill="none" stroke="#0072B2" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="70.0" cy="159.5" r="2.6" fill="#0072B2"/>
+<circle cx="136.3" cy="232.9" r="2.6" fill="#0072B2"/>
+<circle cx="202.6" cy="273.1" r="2.6" fill="#0072B2"/>
+<circle cx="368.4" cy="305.8" r="2.6" fill="#0072B2"/>
+<circle cx="700.0" cy="331.1" r="2.6" fill="#0072B2"/>
+<polyline points="70.0,153.7 136.3,201.0 202.6,223.7 368.4,260.8 700.0,302.7" fill="none" stroke="#D55E00" stroke-width="2" stroke-dasharray="6 3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="70.0" cy="153.7" r="2.6" fill="#D55E00"/>
+<circle cx="136.3" cy="201.0" r="2.6" fill="#D55E00"/>
+<circle cx="202.6" cy="223.7" r="2.6" fill="#D55E00"/>
+<circle cx="368.4" cy="260.8" r="2.6" fill="#D55E00"/>
+<circle cx="700.0" cy="302.7" r="2.6" fill="#D55E00"/>
+<polyline points="70.0,158.4 136.3,175.0 202.6,185.0 368.4,209.6 700.0,251.7" fill="none" stroke="#009E73" stroke-width="2" stroke-dasharray="2 3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="70.0" cy="158.4" r="2.6" fill="#009E73"/>
+<circle cx="136.3" cy="175.0" r="2.6" fill="#009E73"/>
+<circle cx="202.6" cy="185.0" r="2.6" fill="#009E73"/>
+<circle cx="368.4" cy="209.6" r="2.6" fill="#009E73"/>
+<circle cx="700.0" cy="251.7" r="2.6" fill="#009E73"/>
+<polyline points="70.0,170.1 136.3,243.0 202.6,290.0 368.4,322.7 700.0,336.2" fill="none" stroke="#CC79A7" stroke-width="2" stroke-dasharray="8 3 2 3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="70.0" cy="170.1" r="2.6" fill="#CC79A7"/>
+<circle cx="136.3" cy="243.0" r="2.6" fill="#CC79A7"/>
+<circle cx="202.6" cy="290.0" r="2.6" fill="#CC79A7"/>
+<circle cx="368.4" cy="322.7" r="2.6" fill="#CC79A7"/>
+<circle cx="700.0" cy="336.2" r="2.6" fill="#CC79A7"/>
+<polyline points="70.0,138.3 136.3,203.1 202.6,242.8 368.4,295.4 700.0,320.4" fill="none" stroke="#E69F00" stroke-width="2" stroke-dasharray="12 4" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="70.0" cy="138.3" r="2.6" fill="#E69F00"/>
+<circle cx="136.3" cy="203.1" r="2.6" fill="#E69F00"/>
+<circle cx="202.6" cy="242.8" r="2.6" fill="#E69F00"/>
+<circle cx="368.4" cy="295.4" r="2.6" fill="#E69F00"/>
+<circle cx="700.0" cy="320.4" r="2.6" fill="#E69F00"/>
+<polyline points="70.0,160.6 136.3,233.3 202.6,277.6 368.4,308.7 700.0,329.5" fill="none" stroke="#56B4E9" stroke-width="2" stroke-dasharray="4 2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="70.0" cy="160.6" r="2.6" fill="#56B4E9"/>
+<circle cx="136.3" cy="233.3" r="2.6" fill="#56B4E9"/>
+<circle cx="202.6" cy="277.6" r="2.6" fill="#56B4E9"/>
+<circle cx="368.4" cy="308.7" r="2.6" fill="#56B4E9"/>
+<circle cx="700.0" cy="329.5" r="2.6" fill="#56B4E9"/>
+<polyline points="70.0,179.7 136.3,265.2 202.6,296.2 368.4,329.2 700.0,337.8" fill="none" stroke="#8C564B" stroke-width="2" stroke-dasharray="1 3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="70.0" cy="179.7" r="2.6" fill="#8C564B"/>
+<circle cx="136.3" cy="265.2" r="2.6" fill="#8C564B"/>
+<circle cx="202.6" cy="296.2" r="2.6" fill="#8C564B"/>
+<circle cx="368.4" cy="329.2" r="2.6" fill="#8C564B"/>
+<circle cx="700.0" cy="337.8" r="2.6" fill="#8C564B"/>
+<text x="70" y="402" font-size="11" font-weight="600" fill="#1a1a1a">assignment</text>
+<line x1="156.0" y1="398" x2="176.0" y2="398" stroke="#0072B2" stroke-width="2.4"/>
+<text x="182.0" y="402" font-size="11" fill="#1a1a1a">clustered-0.3</text>
+<line x1="273.8" y1="398" x2="293.8" y2="398" stroke="#D55E00" stroke-width="2.4" stroke-dasharray="6 3"/>
+<text x="299.8" y="402" font-size="11" fill="#1a1a1a">clustered-0.6</text>
+<line x1="391.6" y1="398" x2="411.6" y2="398" stroke="#009E73" stroke-width="2.4" stroke-dasharray="2 3"/>
+<text x="417.6" y="402" font-size="11" fill="#1a1a1a">clustered-0.9</text>
+<line x1="509.40000000000003" y1="398" x2="529.4000000000001" y2="398" stroke="#CC79A7" stroke-width="2.4" stroke-dasharray="8 3 2 3"/>
+<text x="535.4000000000001" y="402" font-size="11" fill="#1a1a1a">empirical</text>
+<line x1="600.8000000000001" y1="398" x2="620.8000000000001" y2="398" stroke="#E69F00" stroke-width="2.4" stroke-dasharray="12 4"/>
+<text x="626.8000000000001" y="402" font-size="11" fill="#1a1a1a">marginal</text>
+<line x1="70" y1="417" x2="90" y2="417" stroke="#56B4E9" stroke-width="2.4" stroke-dasharray="4 2"/>
+<text x="96" y="421" font-size="11" fill="#1a1a1a">purpose-matched</text>
+<line x1="201.0" y1="417" x2="221.0" y2="417" stroke="#8C564B" stroke-width="2.4" stroke-dasharray="1 3"/>
+<text x="227.0" y="421" font-size="11" fill="#1a1a1a">uniform</text>
+<text x="70" y="440" font-size="10.5" fill="#6b6b6b">Pairing policies with institutions is modelled, not observed -- so the check is whether the conclusion survives changing it.</text>
+</svg>
