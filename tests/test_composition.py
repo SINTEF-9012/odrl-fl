@@ -32,6 +32,8 @@ from odrl_fl.odrl import (
     default_taxonomy,
     load_policies,
     merge_duties,
+    parse_policy,
+    policy_to_jsonld,
     satisfies,
 )
 
@@ -179,15 +181,24 @@ class TestSetConjunction:
         assert constraint.right_operand == frozenset({"commercial", "education"})
 
     def test_negative_narrows_a_positive(self):
+        """The positive narrows, and the exclusion is kept next to it.
+
+        Both are needed. The narrowed positive is what the permission now
+        allows; the retained exclusion is what keeps a later conjunction from
+        re-admitting the excluded term, since `difference` cannot always
+        express the subtraction in the positive alone.
+        """
         result = conjoin(
             [
                 {purpose("research", "commercial")},
                 {purpose("commercial", negated=True)},
             ]
         )
-        constraint = next(iter(result))
-        assert constraint.operator is Operator.IS_ANY_OF
-        assert constraint.right_operand == frozenset({"research"})
+        by_operator = {c.operator: c for c in result}
+        assert by_operator[Operator.IS_ANY_OF].right_operand == frozenset({"research"})
+        assert by_operator[Operator.IS_NONE_OF].right_operand == frozenset(
+            {"commercial"}
+        )
 
     def test_negative_can_exhaust_a_positive(self):
         with pytest.raises(Unsatisfiable, match="also excluded"):
@@ -312,12 +323,19 @@ class TestProhibitions:
         result = compose([a, b])
         assert Action.DERIVE in result.capability
         constraints = result.agreement.permission_for(Action.DERIVE).constraints
-        purposes = next(
-            c for c in constraints if c.left_operand is LeftOperand.PURPOSE
-        )
-        # research survives; the excluded sub-purpose is not separately listed,
-        # since "research except methods-research" is not expressible here.
-        assert "research" in purposes.right_operand
+        by_operator = {
+            c.operator: c
+            for c in constraints
+            if c.left_operand is LeftOperand.PURPOSE
+        }
+
+        # `research` survives, and the carve-out is kept *alongside* it rather
+        # than folded into it. "research except methods-research" has no
+        # single-term expression, so the pair carries what one term cannot --
+        # and retaining the exclusion is what lets this Agreement be composed
+        # again without the carve-out silently disappearing.
+        assert "research" in by_operator[Operator.IS_ANY_OF].right_operand
+        assert "methods-research" in by_operator[Operator.IS_NONE_OF].right_operand
 
     def test_multi_constraint_prohibition_is_rejected(self):
         a = offer("urn:a", permissions=[Permission(action=Action.DERIVE)])
@@ -539,6 +557,102 @@ class TestCapabilityAndMatching:
         a = offer("urn:party:a", permissions=[Permission(action=Action.USE)])
         b = offer("urn:party:b", permissions=[Permission(action=Action.USE)])
         assert compose([a, b]).agreement.uid == compose([b, a]).agreement.uid
+
+    def test_composing_an_agreement_again_keeps_its_exclusions(self):
+        r"""Regression: composition used to lose exclusions, and permit more.
+
+        Found by Hypothesis. `difference` is deliberately conservative -- a term
+        broader than an excluded one survives, because "EU except DE" cannot be
+        expressed -- so folding an exclusion into the permitted set and then
+        discarding it loses the exclusion outright.
+
+        The consequence was non-associativity in the over-permissive direction.
+        Composing all three of these denies `use`; composing the last two into
+        an Agreement and adding the first used to *permit* it, because
+        `world \ EU` is just `world`. That matters directly for a
+        policy-carrying model, whose agreement is re-composed when the model is
+        reused.
+        """
+        anywhere = offer(
+            "urn:party:anywhere",
+            permissions=[
+                Permission(
+                    action=Action.USE, constraints=frozenset({spatial("world")})
+                )
+            ],
+        )
+        not_eu = offer(
+            "urn:party:not-eu",
+            permissions=[
+                Permission(
+                    action=Action.USE,
+                    constraints=frozenset(
+                        {
+                            Constraint(
+                                LeftOperand.SPATIAL,
+                                Operator.IS_NONE_OF,
+                                frozenset({"EU"}),
+                            )
+                        }
+                    ),
+                )
+            ],
+        )
+        eu_only = offer(
+            "urn:party:eu-only",
+            permissions=[
+                Permission(action=Action.USE, constraints=frozenset({spatial("EU")}))
+            ],
+        )
+
+        at_once = compose([anywhere, not_eu, eu_only]).capability
+        assert Action.USE not in at_once
+
+        # Every grouping must agree with composing all of them at once.
+        for pair, third in (
+            ((anywhere, not_eu), eu_only),
+            ((anywhere, eu_only), not_eu),
+            ((not_eu, eu_only), anywhere),
+        ):
+            partial = compose(list(pair)).agreement
+            assert compose([partial, third]).capability == at_once
+
+    def test_a_composed_exclusion_survives_serialisation(self):
+        """The retained exclusion has to reach whoever reuses the model."""
+        anywhere = offer(
+            "urn:party:anywhere",
+            permissions=[
+                Permission(
+                    action=Action.USE, constraints=frozenset({spatial("world")})
+                )
+            ],
+        )
+        not_eu = offer(
+            "urn:party:not-eu",
+            permissions=[
+                Permission(
+                    action=Action.USE,
+                    constraints=frozenset(
+                        {
+                            Constraint(
+                                LeftOperand.SPATIAL,
+                                Operator.IS_NONE_OF,
+                                frozenset({"EU"}),
+                            )
+                        }
+                    ),
+                )
+            ],
+        )
+        agreement = compose([anywhere, not_eu]).agreement
+        operators = {
+            c.operator
+            for p in agreement.permissions
+            for c in p.constraints
+            if c.left_operand is LeftOperand.SPATIAL
+        }
+        assert Operator.IS_NONE_OF in operators
+        assert parse_policy(policy_to_jsonld(agreement)) == agreement
 
     def test_empty_composition_is_rejected(self):
         with pytest.raises(ValueError):

@@ -172,12 +172,28 @@ def _conjoin_set_valued(
 
     if positive is not None:
         if negative:
-            positive = taxonomy.difference(operand.value, positive, negative)
-            if not positive:
+            reduced = taxonomy.difference(operand.value, positive, negative)
+            if not reduced:
                 raise Unsatisfiable(
                     f"every permitted value of '{operand.value}' is also excluded",
                     operand,
                 )
+            # Keep the exclusion as well as the reduced permission. `difference`
+            # is deliberately conservative -- a term broader than an excluded one
+            # survives, because "EU except DE" is not expressible -- so folding
+            # the exclusion in and discarding it *loses* it. That made the
+            # algebra non-associative in the over-permissive direction: with
+            # `isAnyOf {world}`, `isNoneOf {EU}` and `isAnyOf {EU}`, composing
+            # all three correctly denies the action, but composing the first two
+            # into an Agreement and then adding the third permitted it, since
+            # `world \ EU` is just `world`. Retaining the exclusion makes any
+            # grouping agree, which matters most for a composed Agreement that
+            # is later re-composed -- exactly what reusing a policy-carrying
+            # model does.
+            return [
+                Constraint(operand, Operator.IS_ANY_OF, reduced),
+                Constraint(operand, Operator.IS_NONE_OF, negative),
+            ]
         return [Constraint(operand, Operator.IS_ANY_OF, positive)]
 
     if negative:
@@ -499,10 +515,16 @@ def satisfies(
         granted = agreement.permission_for(wanted.action)
         if granted is None:
             return False
-        by_operand = {c.left_operand: c for c in granted.constraints}
+        # An operand can carry more than one constraint: a composed permission
+        # keeps both what it allows and what it excludes, so `spatial isAnyOf
+        # {world}` and `spatial isNoneOf {EU}` can stand together. Every one of
+        # them has to admit the request.
+        by_operand: dict[LeftOperand, list[Constraint]] = {}
+        for constraint in granted.constraints:
+            by_operand.setdefault(constraint.left_operand, []).append(constraint)
+
         for required in wanted.constraints:
-            if not _constraint_allows(
-                by_operand.get(required.left_operand), required, taxonomy
-            ):
+            allowed = by_operand.get(required.left_operand) or [None]
+            if not all(_constraint_allows(a, required, taxonomy) for a in allowed):
                 return False
     return True
