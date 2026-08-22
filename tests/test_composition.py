@@ -500,6 +500,46 @@ class TestCapabilityAndMatching:
         assert not satisfies(agreement, request_for("ds-cancer"))
         assert satisfies(agreement, request_for("ds-neurological"))
 
+    def test_the_agreement_uid_tracks_terms_not_just_parties(self):
+        """A provenance anchor must move when the terms move.
+
+        Hashing contributor uids alone gives the same identifier to two
+        agreements with different terms: a hospital narrowing its consent keeps
+        its policy uid, so the narrowed agreement would be indistinguishable
+        from the broad one. That is the single collision an identifier whose
+        stated job is anchoring provenance must not have.
+        """
+        broad = offer(
+            "urn:party:a",
+            permissions=[
+                Permission(action=Action.USE, constraints=frozenset({purpose("research")}))
+            ],
+        )
+        narrow = offer(
+            "urn:party:a",
+            permissions=[
+                Permission(
+                    action=Action.USE, constraints=frozenset({purpose("ds-cancer")})
+                )
+            ],
+        )
+        other = offer(
+            "urn:party:b",
+            permissions=[
+                Permission(action=Action.USE, constraints=frozenset({purpose("research")}))
+            ],
+        )
+
+        first = compose([broad, other]).agreement
+        second = compose([narrow, other]).agreement
+        assert first != second
+        assert first.uid != second.uid
+
+    def test_the_agreement_uid_is_still_order_independent(self):
+        a = offer("urn:party:a", permissions=[Permission(action=Action.USE)])
+        b = offer("urn:party:b", permissions=[Permission(action=Action.USE)])
+        assert compose([a, b]).agreement.uid == compose([b, a]).agreement.uid
+
     def test_empty_composition_is_rejected(self):
         with pytest.raises(ValueError):
             compose([])

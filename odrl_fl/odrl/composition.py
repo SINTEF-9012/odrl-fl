@@ -31,6 +31,7 @@ constraints do not intersect.
 from __future__ import annotations
 
 import hashlib
+import json
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime
@@ -50,6 +51,7 @@ from odrl_fl.odrl.model import (
     Prohibition,
     UnsupportedConstruct,
 )
+from odrl_fl.odrl.parser import policy_to_jsonld
 from odrl_fl.odrl.taxonomy import Taxonomy, default_taxonomy
 
 
@@ -337,10 +339,24 @@ def _agreement_uid(policies: Sequence[Policy]) -> str:
 
     Stable across runs and independent of ordering, so an Agreement can be
     referenced and hashed into a provenance record.
+
+    Derived from what the contributors **granted**, not merely from who they
+    were. Hashing the uids alone would give the same identifier to two
+    agreements with different terms: a hospital that narrows its consent from
+    `research` to `ds-cancer` keeps its policy uid, so the agreement covering
+    the narrowed terms would be indistinguishable from the one covering the
+    broad terms. For an identifier whose stated job is anchoring provenance,
+    that is the one collision that must not happen.
     """
-    digest = hashlib.sha256(
-        "\n".join(sorted(p.uid for p in policies)).encode("utf-8")
-    ).hexdigest()
+    fingerprints = sorted(
+        hashlib.sha256(
+            json.dumps(
+                policy_to_jsonld(policy), sort_keys=True, separators=(",", ":")
+            ).encode("utf-8")
+        ).hexdigest()
+        for policy in policies
+    )
+    digest = hashlib.sha256("\n".join(fingerprints).encode("utf-8")).hexdigest()
     return f"urn:agreement:{digest[:16]}"
 
 
