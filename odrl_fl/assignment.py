@@ -186,6 +186,39 @@ def _purpose_matched_sampler(corpus_rng: np.random.Generator) -> Sampler:
     return draw
 
 
+def _measured_sampler(_: np.random.Generator) -> Sampler:
+    """Draw real code sets from the real institutions that published them.
+
+    The other six models each answer "what if institutions were paired with
+    conditions like *this*?" This one does not ask. It draws whole code sets
+    from EGA's own DAC population, so whatever correlation structure real data
+    access committees have is the structure the corpus gets -- and there is no
+    `cohesion` parameter to choose, because nothing is being assumed.
+
+    Institutions are drawn uniformly and a policy is then drawn from within the
+    chosen one. Sampling policies directly instead would weight each institution
+    by how many policies it happens to publish, and one EGA DAC publishes twenty
+    -- which would quietly make the corpus mostly that one institution.
+    """
+    from odrl_fl.ega import CACHE, by_dac, load
+
+    if not CACHE.exists():
+        raise FileNotFoundError(
+            f"the 'measured' assignment model needs the EGA corpus at {CACHE}; "
+            "run `python -m odrl_fl.ega --fetch`"
+        )
+
+    groups = [
+        [c.codes for c in members] for members in by_dac(load()).values()
+    ]
+
+    def draw(rng: np.random.Generator) -> tuple[str, ...]:
+        institution = groups[int(rng.integers(len(groups)))]
+        return institution[int(rng.integers(len(institution)))]
+
+    return draw
+
+
 @dataclass(frozen=True)
 class Model:
     name: str
@@ -236,7 +269,50 @@ MODELS: dict[str, Model] = {
         _purpose_matched_sampler,
         "a consortium already self-selected for compatible purposes",
     ),
+    "measured": Model(
+        "measured",
+        _measured_sampler,
+        "real code sets drawn from the real EGA institutions that published them",
+    ),
 }
+
+
+#: The models that *assume* an assignment, in the order the sensitivity study
+#: reports them. `measured` is deliberately not here: it observes the
+#: assignment rather than assuming one, so averaging it in with the assumptions
+#: would confuse "how much does this depend on what we assumed" with "what is
+#: actually the case". Models registered later by `register_clustered` are
+#: likewise excluded -- they are derived from a measurement.
+ASSUMED = (
+    "empirical",
+    "marginal",
+    "uniform",
+    "clustered-0.3",
+    "clustered-0.6",
+    "clustered-0.9",
+    "purpose-matched",
+)
+
+
+def register_clustered(cohesion: float) -> str:
+    """Register a clustered model at an arbitrary cohesion, returning its name.
+
+    The three fixed rungs (0.3, 0.6, 0.9) were chosen before anything had been
+    measured. The bracket that `odrl_fl.ega` recovers from real DAC structure
+    lands wherever it lands, so comparing the measured value against the
+    assumed ones needs a model at exactly that cohesion rather than at the
+    nearest convenient rung.
+    """
+    if not 0.0 <= cohesion <= 1.0:
+        raise ValueError(f"cohesion must be in [0, 1], got {cohesion}")
+    name = f"clustered-{cohesion:.3f}"
+    if name not in MODELS:
+        MODELS[name] = Model(
+            name,
+            _clustered_at(cohesion),
+            f"homophily at a measured cohesion of {cohesion:.3f}",
+        )
+    return name
 
 
 def build_sampler(model: str, corpus_rng: np.random.Generator) -> Sampler:

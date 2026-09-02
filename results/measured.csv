@@ -1,0 +1,21 @@
+size,heterogeneity,n,capability_mean,capability_lo,capability_hi,retains_any,retains_any_lo,retains_any_hi,purpose_retention,purpose_retention_lo,purpose_retention_hi,duty_mean,condition,note,loss_constraint_conflict,conflict_purpose,conflict_spatial
+1,1.0,300,4.0,4.0,4.0,1.0,1.0,1.0,0.5869,0.5509,0.6236,0.2033,empirical,"the assumed baseline, for reference",,,
+3,1.0,300,3.6267,3.4933,3.76,0.9067,0.8733,0.9367,0.3322,0.3022,0.3616,0.5533,empirical,"the assumed baseline, for reference",112,112,
+5,1.0,300,2.8933,2.693,3.0933,0.7233,0.6733,0.7733,0.1678,0.1449,0.1902,0.8633,empirical,"the assumed baseline, for reference",332,332,
+10,1.0,300,1.44,1.2267,1.6533,0.36,0.3067,0.4133,0.0536,0.0424,0.0644,1.1833,empirical,"the assumed baseline, for reference",768,768,
+20,1.0,300,0.32,0.2,0.4533,0.08,0.05,0.1067,0.0062,0.0038,0.0093,1.4133,empirical,"the assumed baseline, for reference",1104,1104,
+1,1.0,300,4.0,4.0,4.0,1.0,1.0,1.0,0.6144,0.5756,0.6518,0.2633,clustered-0.000,at the measured floor,,,
+3,1.0,300,3.5067,3.36,3.6533,0.8767,0.8367,0.9133,0.326,0.2944,0.3573,0.56,clustered-0.000,at the measured floor,148,148,
+5,1.0,300,2.9467,2.7333,3.1333,0.7367,0.6867,0.7867,0.2116,0.1847,0.2373,0.7667,clustered-0.000,at the measured floor,316,316,
+10,1.0,300,1.8933,1.6667,2.0933,0.4733,0.42,0.5333,0.0927,0.0771,0.1091,1.0633,clustered-0.000,at the measured floor,632,632,
+20,1.0,300,0.4933,0.3597,0.64,0.1233,0.0867,0.16,0.0118,0.0076,0.0169,1.29,clustered-0.000,at the measured floor,1052,1052,
+1,1.0,300,4.0,4.0,4.0,1.0,1.0,1.0,0.6391,0.6071,0.6711,0.2367,clustered-0.683,at the measured ceiling,,,
+3,1.0,300,3.9067,3.84,3.9733,0.9767,0.96,0.9901,0.5087,0.4756,0.5418,0.3967,clustered-0.683,at the measured ceiling,28,28,
+5,1.0,300,3.7067,3.5863,3.8267,0.9267,0.8966,0.9533,0.4136,0.3807,0.446,0.4833,clustered-0.683,at the measured ceiling,88,88,
+10,1.0,300,3.3733,3.2133,3.5333,0.8433,0.8,0.8833,0.2969,0.2691,0.3242,0.7167,clustered-0.683,at the measured ceiling,188,188,
+20,1.0,300,2.84,2.6267,3.04,0.71,0.6533,0.76,0.1571,0.1382,0.1769,1.1467,clustered-0.683,at the measured ceiling,348,348,
+1,1.0,300,4.0,4.0,4.0,1.0,1.0,1.0,0.5738,0.5384,0.6102,0.2033,measured,real code sets from the real institutions,,,
+3,1.0,300,3.6533,3.52,3.7867,0.9133,0.88,0.9433,0.3049,0.2764,0.3329,0.5467,measured,real code sets from the real institutions,104,100,4
+5,1.0,300,3.16,2.9733,3.3333,0.79,0.7433,0.8334,0.1809,0.1604,0.2009,0.7867,measured,real code sets from the real institutions,252,248,4
+10,1.0,300,1.9067,1.6667,2.1203,0.4767,0.4167,0.5333,0.0738,0.0602,0.0873,1.09,measured,real code sets from the real institutions,628,596,32
+20,1.0,300,0.44,0.3067,0.5867,0.11,0.0767,0.1467,0.0091,0.0058,0.0131,1.4433,measured,real code sets from the real institutions,1068,1004,64

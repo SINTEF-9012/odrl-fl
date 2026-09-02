@@ -214,9 +214,13 @@ assumption.
 python experiments/run_sensitivity.py
 ```
 
-The main threat to validity. EGA supplies real code frequencies and real
-co-occurrence, but nothing about which institution holds which conditions, so
-the corpus must assume something. Seven assignment models, same curve:
+This was the main threat to validity, and it is now partly measured rather than
+wholly assumed — see [the measured bracket](#what-the-measurement-settles)
+below. The assumed models are kept because they still bound the answer, and
+because the comparison is the point.
+
+EGA supplies real code frequencies and real co-occurrence. Which institution
+holds which conditions had to be assumed. Seven assignment models, same curve:
 
 | assignment model | drop at 10 | retains any | effect |
 |---|---|---|---|
@@ -245,6 +249,74 @@ compatible with the anchor and incompatible with one another
 `ds-cancer ⊓ ds-neurological` is empty). Self-selection is necessary but not
 sufficient — which is precisely the argument for selecting explicitly, and why
 selection is a set-level search rather than a filter.
+
+### What the measurement settles
+
+```bash
+python -m odrl_fl.ega --fetch          # once; the corpus is committed
+python experiments/run_measured.py
+```
+
+![Erosion once the assignment is measured, not assumed](results/figures/measured.svg)
+
+The assignment does not have to be assumed. EGA's `/policies` endpoint returns
+`dac_accession_id` beside `duos` — the Data Access Committee that issues each
+policy — so which conditions travel together *because the same institution
+issued them* is observable. `experiments/fetch_duo_frequencies.py` had been
+discarding that field.
+
+`odrl_fl/ega.py` keeps it. From 4 817 EGA policies, **1 031 carry structured DUO
+conditions** (21.4% adoption) across **899 committees**.
+
+**Cohesion is recoverable from an agreement rate.** `_clustered_sampler` defines
+it exactly — with probability `c` a contributor adopts a shared archetype,
+otherwise it draws empirically — so for two contributors the chance of an
+identical code set is `c² + (1−c)²·p + 2c(1−c)·w`, where `p` is the chance two
+independent draws coincide. The archetype is drawn from that same distribution,
+so `E[w] = p` and the quadratic collapses to `agreement = p + c²(1−p)`,
+inverting to `c = sqrt((agreement − p) / (1 − p))`.
+
+| quantity | measured | implies cohesion |
+|---|---|---|
+| chance coincidence `p` | 0.0131 | — |
+| agreement between different DACs | 0.0118 | **0.000** (floor) |
+| agreement within one DAC | 0.474 [0.349, 0.595] | **0.683** [0.584, 0.768] (ceiling) |
+
+It is a bracket and not a point on purpose. **A DAC is not a consortium** — it is
+one institution issuing several policies, the most homophilous grouping
+obtainable, so its internal agreement bounds cohesion from *above*. Unrelated
+committees bound it from *below*, and they agree slightly **less** than chance
+(0.0118 against 0.0131), which the clustered model cannot express at all: it can
+add homophily, never subtract it. The floor is therefore zero.
+
+| condition | drop at 10 | retains any |
+|---|---|---|
+| `clustered-0.683` — measured ceiling | 16% | 84% |
+| **`measured`** — real code sets, real institutions | **52%** | **48%** |
+| `clustered-0.000` — measured floor | 53% | 47% |
+| `empirical` — the assumed baseline | 64% | 36% |
+
+**The range narrows from 69 points wide to 37.** The seven assumed models spanned
+7%–77%; the measured bracket spans 16%–53%.
+
+**What it does not settle, stated plainly.** At the ceiling the drop is 16%, so
+the admission made above about `clustered-0.6` (17%) applies unchanged: at that
+end of the bracket the pre-registered go/no-go criterion would still not have
+been met.
+Measuring the assignment halved the uncertainty; it did not eliminate it.
+
+Two things argue the ceiling is the wrong place to stand, and neither is
+decisive. The ceiling assumes a consortium is as internally consistent as a
+single institution's own policy portfolio, which is not what a consortium is.
+And the `measured` row assumes nothing at all — it draws whole code sets from
+the real committees that published them, with whatever correlation structure
+EGA actually has — and lands at 52%, next to the floor rather than the ceiling.
+
+**The ceiling rests on 57 institutions**, the only ones in EGA publishing more
+than one machine-readable policy. That is a thin sample, and it is also a
+finding: alongside the 21.4% adoption rate, it says structured data-use policy
+is not yet common practice. The interval on that estimate is reported everywhere
+it is quoted, and should be.
 
 ## Selection: recovering a usable consortium
 
@@ -687,6 +759,7 @@ Five figures, rendered from the committed CSVs by
 | [`sensitivity.svg`](results/figures/sensitivity.svg) | the collapse survives changing the assignment model | `sensitivity.csv` |
 | [`selection.svg`](results/figures/selection.svg) | policy-blind selection wins on paper, loses deployed | `selection.csv` |
 | [`tcga.svg`](results/figures/tcga.svg) | on real data, only the combinatorial result separates | `tcga.csv` |
+| [`measured.svg`](results/figures/measured.svg) | the assumed range halves once assignment is measured | `measured.csv` |
 
 ```bash
 python experiments/make_figures.py
@@ -722,6 +795,7 @@ sit behind cheap gates. Increments 0–5 involve no federated learning at all.
 | 9 | Re-evaluation: expiry, withdrawal, duty breach | **done** |
 | 10 | Real medical dataset (TCGA-BRCA) + harness | **done** |
 | 11 | Results and figures | **done** |
+| 12 | Measured assignment: EGA DAC structure | **done** |
 
 Increment 4 is the decision point. If capability erosion turns out to be either
 trivial (almost nothing erodes) or degenerate (everything collapses at two
@@ -760,6 +834,10 @@ Real patients, real institutions (fetches ~117 KB from the GDC via FLamby):
 
 ```bash
 python experiments/run_tcga.py
+```
+
+```bash
+python experiments/run_measured.py
 ```
 
 Selection through to a trained model, no federation required:

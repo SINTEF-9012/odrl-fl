@@ -24,7 +24,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from odrl_fl.assignment import MODELS
+from odrl_fl.assignment import ASSUMED, MODELS
 from odrl_fl.erosion import evaluate_criteria, run_study
 
 RESULTS = Path(__file__).resolve().parent.parent / "results"
@@ -44,7 +44,10 @@ def main(argv: list[str] | None = None) -> int:
     rows: list[dict] = []
     verdicts: dict[str, tuple[float, float, bool]] = {}
 
-    for name, model in MODELS.items():
+    # Only the assumed models. `measured` answers a different question and
+    # is reported by run_measured.py.
+    for name in ASSUMED:
+        model = MODELS[name]
         summaries = run_study(
             pool_size=args.pool_size,
             sizes=SIZES,

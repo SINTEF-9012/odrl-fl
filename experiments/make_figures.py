@@ -238,12 +238,65 @@ def fig_tcga(rows: list[dict]) -> str:
     )
 
 
+def fig_measured(rows: list[dict]) -> str:
+    """The assumed range against the measured one.
+
+    The point of the figure is the width of the shaded region, not any single
+    line in it. Seven assumed models spread the headline across most of the
+    possible range; measuring the assignment collapses that to whatever the
+    bracket turns out to be. If the bracket is still wide, the figure says so
+    just as plainly -- it is drawn from the numbers either way.
+    """
+    by_condition: dict[str, list[dict]] = defaultdict(list)
+    for row in rows:
+        by_condition[row["condition"]].append(row)
+
+    # The measured conditions are the bracket ends plus the non-parametric
+    # corpus; `empirical` is carried along only as the old baseline.
+    ordered = sorted(by_condition, key=lambda n: (n == "empirical", n))
+    series = []
+    for name in ordered:
+        group = sorted(
+            (r for r in by_condition[name] if float(r["heterogeneity"]) == 1.0),
+            key=lambda r: int(r["size"]),
+        )
+        if not group:
+            continue
+        label = "empirical (assumed baseline)" if name == "empirical" else name
+        series.append(
+            Series(
+                label=label,
+                xs=[int(r["size"]) for r in group],
+                ys=[fnum(r, "retains_any") for r in group],
+            )
+        )
+
+    return line_chart(
+        series,
+        title="Erosion once the assignment is measured, not assumed",
+        subtitle=(
+            "Retention at the bracket EGA's data access committees imply, "
+            "against the assumed baseline"
+        ),
+        x=Axis(label="contributors in the federation", lo=1),
+        y=Axis(label="retains any permission", lo=0, hi=1, fmt="{:.0%}"),
+        legend_title="condition",
+        notes=(
+            "The bracket ends are the floor (unrelated institutions) and the "
+            "ceiling (one institution's own policies). Real consortia sit "
+            "between; the ceiling rests on the few institutions publishing "
+            "more than one machine-readable policy."
+        ),
+    )
+
+
 FIGURE_SPECS = (
     ("erosion.csv", "erosion.svg", fig_erosion, "run_erosion.py"),
     ("erosion.csv", "purpose-retention.svg", fig_purpose, "run_erosion.py"),
     ("sensitivity.csv", "sensitivity.svg", fig_sensitivity, "run_sensitivity.py"),
     ("selection.csv", "selection.svg", fig_selection, "run_selection.py"),
     ("tcga.csv", "tcga.svg", fig_tcga, "run_tcga.py"),
+    ("measured.csv", "measured.svg", fig_measured, "run_measured.py"),
 )
 
 
