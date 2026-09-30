@@ -290,6 +290,49 @@ def fig_measured(rows: list[dict]) -> str:
     )
 
 
+def fig_estimators(rows: list[dict]) -> str:
+    """How much of the frontier each training-free estimator keeps.
+
+    All three bars are in [0, 1] so they share an axis honestly. Regret is the
+    number that actually matters to a practitioner and is not a rate, so it goes
+    under each estimator's name rather than being forced onto the same scale.
+    """
+    bars = []
+    sublabels: dict[str, str] = {}
+    for row in rows:
+        name = row["estimator"]
+        bars += [
+            Bar(name, "rank correlation", max(fnum(row, "kendall_tau"), 0.0),
+                annotation=f"{fnum(row, 'kendall_tau'):.2f}"),
+            Bar(name, "frontier recall", fnum(row, "frontier_recall"),
+                annotation=f"{fnum(row, 'frontier_recall'):.0%}"),
+            Bar(name, "frontier precision", fnum(row, "frontier_precision"),
+                annotation=f"{fnum(row, 'frontier_precision'):.0%}"),
+        ]
+        sublabels[name] = (
+            f"regret {fnum(row, 'regret'):.3f} "
+            f"[{fnum(row, 'regret_lo'):.3f}, {fnum(row, 'regret_hi'):.3f}]"
+        )
+
+    seeds = int(fnum(rows[0], "seeds")) if rows else 0
+    return grouped_bar_chart(
+        bars,
+        title="Can a consortium be chosen without training it?",
+        subtitle=(
+            "Three estimators that never train, scored against an exhaustively "
+            "trained lattice"
+        ),
+        y=Axis(label="agreement with ground truth", lo=0, hi=1, fmt="{:.0%}"),
+        sublabels=sublabels,
+        notes=(
+            "Regret is the accuracy lost by deploying the estimator's pick, "
+            f"averaged over {seeds} federations; an interval straddling zero "
+            "means they disagree rather than that it is free. 'coverage' is the "
+            "proxy the project already used."
+        ),
+    )
+
+
 FIGURE_SPECS = (
     ("erosion.csv", "erosion.svg", fig_erosion, "run_erosion.py"),
     ("erosion.csv", "purpose-retention.svg", fig_purpose, "run_erosion.py"),
@@ -297,6 +340,7 @@ FIGURE_SPECS = (
     ("selection.csv", "selection.svg", fig_selection, "run_selection.py"),
     ("tcga.csv", "tcga.svg", fig_tcga, "run_tcga.py"),
     ("measured.csv", "measured.svg", fig_measured, "run_measured.py"),
+    ("estimators.csv", "estimators.svg", fig_estimators, "run_estimators.py"),
 )
 
 

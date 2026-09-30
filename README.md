@@ -747,6 +747,88 @@ The cohort is fetched on demand and gitignored, not vendored: it belongs to the
 GDC. Users must not attempt to re-identify participants
 ([GDC policies](https://gdc.cancer.gov/about-gdc/gdc-policies)).
 
+## Choosing a consortium without training it
+
+```bash
+python experiments/run_groundtruth.py     # ~4 hours, resumable
+python experiments/run_estimators.py
+```
+
+> **Status: machinery complete, ground truth not yet run.** No numbers are quoted
+> here because none have been measured at a setting that would support them. The
+> first attempt was discarded, and why it was discarded is the useful part.
+
+Selection searches a powerset. The legal half of that search is cheap --
+composition needs no data and no training, and under a tight request it removed
+[98.6% of the space](#request-tightness-is-what-makes-selection-hard). The
+utility half is the expensive one, and if scoring a candidate means training it
+then the search is affordable only for pools too small to need one.
+
+So: **can a training-free estimator pick the same consortium a trained one
+would?** Three are implemented in [`odrl_fl/estimators.py`](odrl_fl/estimators.py),
+all of the form *quality × √volume*:
+
+| estimator | quality term | cost |
+|---|---|---|
+| `coverage` | classes present / 4 | none — the incumbent proxy |
+| `divergence` | 1 − JS distance from the target label distribution | none |
+| `gradient` | agreement between client gradients at a shared init | one backward pass per contributor |
+
+`gradient` is the interesting one: O(n) precompute over the pool, then O(1) per
+subset, which is what makes querying thousands of candidates viable at all.
+
+### The question is frontier fidelity, not accuracy
+
+Selection never reads the estimate, only the ordering — so an estimator can be
+off by any monotone transformation and still be perfectly useful. What it cannot
+be wrong about is **which candidates are non-dominated**, because that set is the
+menu a human chooses from. Hence recall, precision, and *regret*: the accuracy
+actually lost by deploying the estimator's pick.
+
+A ranking error only matters where it flips a dominance relation. Errors among
+already-dominated candidates are free; one swap at the frontier boundary can
+remove the best option entirely.
+
+### Why the first ground-truth run was thrown away
+
+An exhaustive lattice was computed -- all 1023 subsets of a ten-contributor pool,
+five seeds, an hour of compute -- and then discarded, for two reasons that are
+worth recording because both were invisible in the output.
+
+**The models had not converged.** Five rounds was the inherited default, and
+accuracy was still climbing +0.068 per round at round five. The numbers measured
+how quickly a consortium *starts* learning, not how good its model is. Trained to
+twenty rounds, the gap between the best and worst consortia closed almost
+entirely.
+
+**The task saturated.** At the default `alpha = 1.0` every consortium converges
+to about 0.98 and the spread across them is **0.005** -- there is no utility axis
+left to estimate. This is the failure the design notes already warn about: a task
+that saturates makes every subset look identical and the evaluation vacuous.
+
+| alpha | spread across consortia at convergence |
+|---|---|
+| 1.0 | 0.005 |
+| 0.3 | 0.117 |
+| 0.1 | 0.149 |
+
+Real label skew is also the realistic case -- institutions specialise, and a
+consortium holding no examples of a class cannot learn it. The study therefore
+runs at `alpha = 0.3` and twenty rounds.
+
+The undertrained run also pointed the wrong way about something load-bearing. At
+five rounds a four-member consortium beat the eight-member one, which would have
+contradicted the argument in [`selection.py`](odrl_fl/selection.py) that there is
+never a reason to stop short of a maximal feasible set. At convergence under real
+skew the largest consortium wins, and the argument survives. Had the study been
+written up from the first run, it would have reported a refutation that was an
+artefact of stopping training too early.
+
+Ground truth now records the `alpha` and `rounds` it was produced under, and the
+evaluation builds its estimators to match rather than assuming, because an
+estimator built at one heterogeneity and scored against models trained at another
+compares two different worlds and looks entirely healthy doing it.
+
 ## Figures
 
 Five figures, rendered from the committed CSVs by
@@ -796,6 +878,7 @@ sit behind cheap gates. Increments 0–5 involve no federated learning at all.
 | 10 | Real medical dataset (TCGA-BRCA) + harness | **done** |
 | 11 | Results and figures | **done** |
 | 12 | Measured assignment: EGA DAC structure | **done** |
+| 13 | Training-free utility estimation | machinery ready, ground truth pending |
 
 Increment 4 is the decision point. If capability erosion turns out to be either
 trivial (almost nothing erodes) or degenerate (everything collapses at two
