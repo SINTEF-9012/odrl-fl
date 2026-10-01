@@ -711,13 +711,14 @@ attached to real institutions with real patient counts.
 
 | | C-index |
 |---|---|
-| centralised, data pooled | 0.774 |
-| federated, all 16 sites | 0.643 |
-| median single institution | 0.557 |
-| bootstrap 95% CI on one estimate | **±0.11** |
+| centralised, data pooled | 0.668 |
+| federated, all 16 sites | 0.686 |
+| best single institution | 0.641 (Roswell Park) |
+| median single institution | 0.560 |
+| bootstrap 95% CI on one estimate | **[0.578, 0.784], ±0.10** |
 
-With 40 events in the held-out fold, a single C-index carries roughly ±0.11. The
-difference between policy-aware and policy-blind consortia is ~0.01 — an order
+With 40 events in the held-out fold a single C-index carries roughly ±0.10. The
+difference between policy-aware and policy-blind consortia is ~0.015 — an order
 of magnitude below the noise. More seeds do not help; the limit is the cohort.
 
 **So the results split cleanly.** Anything combinatorial is settled, because it
@@ -726,22 +727,53 @@ follows from composing declared terms and never touches a metric:
 | | policy-blind | policy-aware |
 |---|---|---|
 | permitted to use its own model | **20%** | **100%** |
-| deployable C-index | 0.114 | 0.590 |
+| deployable C-index | 0.138 | 0.673 |
 
 Anything about model quality is not settled, and the honest answer is that
 answering it needs a larger cohort — which for this disease means
 controlled-access data, the same tier where the interesting policies live.
 
-### Federated Cox loses to centralised, for a reason
+### Federated Cox optimises the wrong objective, and this cohort cannot show it
 
-The federated model (0.643) falls well short of pooling (0.774), and the gap
-does not close with more rounds. **The Cox partial likelihood is not a sum over
-clients**: its risk set spans every patient still at risk at each event time, so
-a client computing the loss over its own cohort optimises a different objective
-than the federation's. Andreux et al. (2020) reformulate to discrete time for
-exactly this reason; naive FedAvg here does not. It does not disturb the
-comparisons above — both consortia use the same trainer — but these C-index
-figures are a floor for this dataset, not its ceiling.
+**The Cox partial likelihood is not a sum over clients.** Its risk set spans
+every patient still at risk at each event time, so a client computing the loss
+over its own cohort optimises a different objective than the federation's.
+Averaging those gradients converges correctly to the wrong function, which is why
+more rounds do not help. Andreux et al. (2020) reformulate to discrete time for
+exactly this reason; naive FedAvg here does not. That argument is mathematics and
+holds regardless of what this cohort shows.
+
+**What this cohort shows is nothing, and an earlier version of this section
+claimed otherwise.** It reported the federated model at 0.643 against pooling at
+0.774 and read the gap as the objective mismatch made visible. On a reproducible
+split the two are 0.686 and 0.668 — federated now *ahead* of centralised, by less
+than a fifth of the ±0.10 interval either number carries. Both orderings are
+noise. The original gap was an artefact of a fold that could not be reconstructed
+(see below), and it is recorded here rather than quietly corrected because it is
+the clearest example in this repository of a plausible mechanism being credited
+for what was really sampling variation.
+
+It does not disturb the comparisons above — both consortia use the same trainer —
+and the deployable figures are untouched, because feasibility never depends on a
+metric.
+
+### A split that could not be reproduced
+
+`split()` derived its per-site seed from the builtin `hash`, which Python
+randomises per interpreter. Every process therefore drew a different train/test
+fold from the same nominal `seed=0`: reproducible within a run, never between
+runs. It surfaced as an intermittently failing test, but the cost that mattered
+was silent — every TCGA figure published here came from a fold nobody could
+reconstruct, and the apparent centralised-versus-federated gap was one of them.
+
+The fix is a stable hash (`odrl_fl/tcga.py`, `_site_seed`), with the fold pinned
+by golden-value tests so a regression fails loudly.
+
+Regenerating under the fix is also a clean test of this section's own claim about
+which results are settled. Every **model-quality** number moved — the C-indices
+above all shifted by 0.02 to 0.11. Not one **combinatorial** number did:
+consortium sizes and the feasibility column came back byte-identical, because
+composing declared terms never touches the data.
 
 The cohort is fetched on demand and gitignored, not vendored: it belongs to the
 GDC. Users must not attempt to re-identify participants

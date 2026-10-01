@@ -22,6 +22,7 @@ from odrl_fl.tcga import (
     DATA_DIR,
     N_FEATURES,
     CoxModel,
+    _site_seed,
     c_index,
     cox_loss,
     evaluate_cox,
@@ -186,3 +187,45 @@ class TestRealTerms:
         """`identify` is a profile extension: neither ODRL core nor DUO defines
         it, though it is the only enforceable term on this data."""
         assert Action.IDENTIFY.value == "identify"
+
+
+class TestSplitIsReproducible:
+    """A split derived from the builtin `hash` is reproducible within a process
+    and never between processes, because Python randomises string hashing per
+    interpreter. That shipped for three increments: a test failed intermittently,
+    and every committed TCGA figure came from a fold nobody could reconstruct.
+    """
+
+    def test_the_site_seed_is_a_fixed_number_forever(self):
+        """Hardcoded on purpose. If someone reaches for `hash()` again this
+        fails under almost every PYTHONHASHSEED, which is the whole point."""
+        assert _site_seed("Mayo Clinic") == 1675962478
+
+    def test_different_sites_get_different_seeds(self):
+        """Stability must not collapse into every site sharing one fold."""
+        assert _site_seed("Walter Reed") != _site_seed("Roswell Park")
+
+    def test_the_seed_does_not_depend_on_process_state(self):
+        """The builtin hash varies per interpreter; this must not."""
+        assert _site_seed("Walter Reed") == 3045256978
+
+    def test_splitting_twice_gives_the_same_fold(self, sites):
+        first = split(sites[0], seed=0)
+        second = split(sites[0], seed=0)
+        for a, b in zip(first, second):
+            assert np.array_equal(a[0], b[0])
+            assert np.array_equal(a[1], b[1])
+
+    def test_a_different_seed_gives_a_different_fold(self, sites):
+        """Determinism must not have been bought by ignoring the seed."""
+        (xtr_a, _), _ = split(sites[0], seed=0)
+        (xtr_b, _), _ = split(sites[0], seed=1)
+        assert not np.array_equal(xtr_a, xtr_b)
+
+    def test_the_fold_itself_is_pinned(self, sites):
+        """Golden value over the whole derivation, not just its seed: catches a
+        change to the stratification or the rounding as well as to the hash."""
+        (xtr, ytr), (_, yte) = split(sites[0], seed=0)
+        assert len(ytr) == 112
+        assert len(yte) == 38
+        assert xtr[0][0] == pytest.approx(-1.398966, abs=1e-5)

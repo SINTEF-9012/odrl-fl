@@ -49,6 +49,7 @@ from __future__ import annotations
 
 import csv
 import urllib.request
+import zlib
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -288,6 +289,23 @@ def pooled(sites: Iterable[Site]) -> tuple[np.ndarray, np.ndarray]:
     )
 
 
+def _site_seed(name: str) -> int:
+    """A per-site seed that does not depend on which process asks for it.
+
+    The obvious `hash(name)` is wrong here, and was used for three increments
+    before anyone noticed. Python randomises string hashing per interpreter
+    under `PYTHONHASHSEED`, so a split derived from it is reproducible *within*
+    a run and never *between* runs -- the same `seed=0` yields a different
+    train/test fold in every process. That made one test intermittently fail,
+    which is how it surfaced, but the cost that mattered was silent: every
+    committed TCGA figure came from a fold nobody could reconstruct.
+
+    CRC32 is not a cryptographic hash and does not need to be. It needs to be
+    the same number everywhere, forever, which the builtin is not.
+    """
+    return zlib.crc32(name.encode("utf-8"))
+
+
 def split(
     site: Site, *, holdout: float = 0.25, seed: int = 0
 ) -> tuple[tuple[np.ndarray, np.ndarray], tuple[np.ndarray, np.ndarray]]:
@@ -297,7 +315,7 @@ def split(
     can leave a test fold with no events at all, and a C-index over no
     comparable pairs is undefined rather than merely noisy.
     """
-    rng = np.random.default_rng([seed, abs(hash(site.name)) % (2**31)])
+    rng = np.random.default_rng([seed, _site_seed(site.name)])
     train_idx: list[int] = []
     test_idx: list[int] = []
 
