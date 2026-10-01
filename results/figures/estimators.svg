@@ -4,26 +4,28 @@
 <text x="70" y="44" font-size="11.5" fill="#6b6b6b">Accuracy given up against an oracle that trains every candidate -- lower is better</text>
 <line x1="70" y1="286.0" x2="700" y2="286.0" stroke="#e4e4e4" stroke-width="1"/>
 <text x="61" y="289.5" font-size="11" text-anchor="end" fill="#6b6b6b">0.00</text>
-<line x1="70" y1="237.8" x2="700" y2="237.8" stroke="#e4e4e4" stroke-width="1"/>
-<text x="61" y="241.3" font-size="11" text-anchor="end" fill="#6b6b6b">0.03</text>
-<line x1="70" y1="189.6" x2="700" y2="189.6" stroke="#e4e4e4" stroke-width="1"/>
-<text x="61" y="193.1" font-size="11" text-anchor="end" fill="#6b6b6b">0.05</text>
-<line x1="70" y1="141.4" x2="700" y2="141.4" stroke="#e4e4e4" stroke-width="1"/>
-<text x="61" y="144.9" font-size="11" text-anchor="end" fill="#6b6b6b">0.07</text>
-<line x1="70" y1="93.3" x2="700" y2="93.3" stroke="#e4e4e4" stroke-width="1"/>
-<text x="61" y="96.8" font-size="11" text-anchor="end" fill="#6b6b6b">0.10</text>
-<rect class="bar" x="143.0" y="105.2" width="58.0" height="180.8" fill="#0072B2" rx="2"/>
-<text x="172.0" y="99.2" font-size="10.5" font-weight="600" text-anchor="middle" fill="#1a1a1a">0.094</text>
-<rect class="bar" x="353.0" y="252.1" width="58.0" height="33.9" fill="#0072B2" rx="2"/>
-<text x="382.0" y="246.1" font-size="10.5" font-weight="600" text-anchor="middle" fill="#1a1a1a">0.018</text>
+<line x1="70" y1="245.5" x2="700" y2="245.5" stroke="#e4e4e4" stroke-width="1"/>
+<text x="61" y="249.0" font-size="11" text-anchor="end" fill="#6b6b6b">0.02</text>
+<line x1="70" y1="205.0" x2="700" y2="205.0" stroke="#e4e4e4" stroke-width="1"/>
+<text x="61" y="208.5" font-size="11" text-anchor="end" fill="#6b6b6b">0.04</text>
+<line x1="70" y1="164.5" x2="700" y2="164.5" stroke="#e4e4e4" stroke-width="1"/>
+<text x="61" y="168.0" font-size="11" text-anchor="end" fill="#6b6b6b">0.06</text>
+<line x1="70" y1="124.0" x2="700" y2="124.0" stroke="#e4e4e4" stroke-width="1"/>
+<text x="61" y="127.5" font-size="11" text-anchor="end" fill="#6b6b6b">0.08</text>
+<line x1="70" y1="83.5" x2="700" y2="83.5" stroke="#e4e4e4" stroke-width="1"/>
+<text x="61" y="87.0" font-size="11" text-anchor="end" fill="#6b6b6b">0.10</text>
+<rect class="bar" x="143.0" y="123.4" width="58.0" height="162.6" fill="#0072B2" rx="2"/>
+<text x="172.0" y="117.4" font-size="10.5" font-weight="600" text-anchor="middle" fill="#1a1a1a">0.080</text>
+<rect class="bar" x="353.0" y="123.4" width="58.0" height="162.6" fill="#0072B2" rx="2"/>
+<text x="382.0" y="117.4" font-size="10.5" font-weight="600" text-anchor="middle" fill="#1a1a1a">0.080</text>
 <rect class="bar" x="563.0" y="77.1" width="58.0" height="208.9" fill="#0072B2" rx="2"/>
-<text x="592.0" y="71.1" font-size="10.5" font-weight="600" text-anchor="middle" fill="#1a1a1a">0.108</text>
+<text x="592.0" y="71.1" font-size="10.5" font-weight="600" text-anchor="middle" fill="#1a1a1a">0.103</text>
 <text x="175.0" y="306" font-size="11.5" text-anchor="middle" fill="#1a1a1a">coverage</text>
-<text x="175.0" y="321" font-size="10.5" text-anchor="middle" fill="#6b6b6b">[0.003, 0.189]   tau +0.24</text>
+<text x="175.0" y="321" font-size="10.5" text-anchor="middle" fill="#6b6b6b">[0.005, 0.173]   tau +0.23</text>
 <text x="385.0" y="306" font-size="11.5" text-anchor="middle" fill="#1a1a1a">divergence</text>
-<text x="385.0" y="321" font-size="10.5" text-anchor="middle" fill="#6b6b6b">[0.002, 0.042]   tau +0.38</text>
+<text x="385.0" y="321" font-size="10.5" text-anchor="middle" fill="#6b6b6b">[0.005, 0.173]   tau +0.34</text>
 <text x="595.0" y="306" font-size="11.5" text-anchor="middle" fill="#1a1a1a">gradient</text>
-<text x="595.0" y="321" font-size="10.5" text-anchor="middle" fill="#6b6b6b">[0.021, 0.207]   tau -0.11</text>
+<text x="595.0" y="321" font-size="10.5" text-anchor="middle" fill="#6b6b6b">[0.021, 0.202]   tau -0.08</text>
 <line x1="70" y1="286" x2="700" y2="286" stroke="#1a1a1a" stroke-width="1.2"/>
 <text x="16" y="169.0" font-size="11.5" fill="#1a1a1a" text-anchor="middle" transform="rotate(-90 16 169.0)">accuracy lost (lower is better)</text>
 <rect x="70" y="340" width="12" height="12" fill="#0072B2" rx="2"/>

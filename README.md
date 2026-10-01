@@ -803,8 +803,9 @@ all of the form *quality × √volume*:
 | `divergence` | 1 − JS distance from the target label distribution | none |
 | `gradient` | agreement between client gradients at a shared init | one backward pass per contributor |
 
-`gradient` is the interesting one: O(n) precompute over the pool, then O(1) per
-subset, which is what makes querying thousands of candidates viable at all.
+`gradient` was meant to be the interesting one: O(n) precompute over the pool,
+then O(1) per subset, which is what makes querying thousands of candidates viable
+at all. It is also the one that fails.
 
 ![Can a consortium be chosen without training it?](results/figures/estimators.svg)
 
@@ -822,58 +823,88 @@ remove the best option entirely.
 
 ### What the lattice says
 
-All 637 consortia of up to five members from a pool of ten, five federations,
-trained to convergence at `alpha = 0.3`. Regret is the accuracy lost by deploying
-the estimator's pick rather than the best available:
+All 1023 consortia from a pool of ten, five federations, trained to convergence
+at `alpha = 0.3` — 5115 runs. Regret is the accuracy lost by deploying the
+estimator's pick rather than the best observed:
 
-| estimator | Kendall tau | regret (95% CI) |
-|---|---|---|
-| `coverage` — the incumbent | 0.241 | 0.094 [0.003, 0.189] |
-| **`divergence`** | **0.382** | **0.018 [0.002, 0.042]** |
-| `gradient` | **−0.112** | 0.108 [0.021, 0.207] |
+| estimator | mean members picked | Kendall tau | regret (95% CI) |
+|---|---|---|---|
+| `coverage` — the incumbent | 8.4 | 0.235 | 0.080 [0.005, 0.173] |
+| `divergence` | 8.4 | 0.340 | 0.080 [0.005, 0.173] |
+| `gradient` | 5.2 | **−0.077** | 0.103 [0.021, 0.202] |
 
-**Label divergence is a real improvement on the proxy the project already used** —
-about five times less regret, and the interval excludes zero. Choosing by it
-costs under two accuracy points against an oracle that trains everything.
+**Coverage and divergence are indistinguishable.** Both pick the identical
+consortium in all five federations — always the largest feasible one — because
+every estimator here scales with `√volume` and volume swamps the quality term.
+Their rank correlations differ, so they order the *middle* of the field
+differently; they simply never disagree about the top.
+
+**An earlier version of this section claimed otherwise, and was wrong.** Capped at
+five members, divergence showed regret of 0.018 against coverage's 0.094 and was
+reported as a fivefold improvement. That advantage was an artefact of the cap:
+excluding the large consortia removed precisely the candidates both estimators
+favour. Lifting the cap cost two hours and erased the headline.
 
 **Gradient coherence fails, and it was the novel one.** Its rank correlation is
-*negative*: consortia whose clients agree at initialisation tend to finish
-slightly worse, because coherence falls as contributors are added while accuracy
-rises. The signal is confounded by size, and the idea does not survive contact
-with the lattice.
+*negative*: coherence falls as contributors are added while accuracy rises, so
+the signal is confounded by size. It does not survive contact with the lattice.
 
-**Every estimator costs real accuracy.** No interval includes zero, so
-training-free selection is cheaper but not free. Whether two points is a fair
-price for not training 637 models is a judgement, and the number is now available
-to make it with.
+### The regret metric indicts itself
+
+Regret is measured against the single best-performing consortium observed, and
+that maximum is a draw rather than a fact:
+
+| members | mean accuracy | std dev | max |
+|---|---|---|---|
+| 1 | 0.615 | **0.178** | 0.992 |
+| 5 | 0.893 | 0.106 | 0.997 |
+| 10 | **0.904** | 0.099 | 0.996 |
+
+Mean accuracy rises monotonically with consortium size while variance nearly
+halves, and the maximum is flat because the task has a ceiling. So the argmax
+over a thousand candidates is almost always a **small consortium that got lucky**
+— 3.4 members on average — rather than a good one.
+
+The estimators pick 8.4 members: the choice with the highest *expected* accuracy,
+which is the defensible one. Regret then charges them for failing to guess a
+draw they had no way to identify. **The reported figures are an upper bound on
+estimator error, and most of what they measure is the winner's curse on the
+ground-truth side.** Fixing it needs replicate training runs within each
+federation so the target is an expectation rather than one sample, which is
+roughly five times the compute and has not been done.
+
+This also settles something [`selection.py`](odrl_fl/selection.py) asserts without
+evidence — that there is never a reason to stop short of a maximal feasible set,
+because adding a contributor cannot reduce utility. On mean accuracy under skew,
+that holds: 0.615 at one member, 0.904 at ten, monotone throughout.
 
 ### Two things the headline would hide
 
 **Frontier recall and precision are 0% and mean nothing here.** Three of the five
-federations are *saturated* -- every feasible consortium performs within 0.0025
+federations are *saturated* — every feasible consortium performs within 0.003
 accuracy of every other, so which points are non-dominated is settled by noise
 rather than by the estimator. The evaluation detects this and says so rather than
 letting a reader take 0% for a finding.
 
 | federation | feasible | frontier | spread | reading |
 |---|---|---|---|---|
-| 0 | 291 | 5 | 0.0005 | saturated |
-| 1 | 637 | 3 | 0.0660 | discriminating |
-| 2 | 250 | 1 | 0.0000 | saturated |
-| 3 | 544 | 5 | 0.0025 | saturated |
-| 4 | 238 | 2 | 0.0550 | discriminating |
+| 0 | 335 | 5 | 0.0005 | saturated |
+| 1 | 1023 | 3 | 0.0660 | discriminating |
+| 2 | 287 | 1 | 0.0000 | saturated |
+| 3 | 767 | 2 | 0.0030 | saturated |
+| 4 | 255 | 2 | 0.0550 | discriminating |
 
 **Most of the time, consortium choice barely matters.** That is the more useful
-finding for a practitioner than any estimator ranking. In three federations out
-of five the choice is worth almost nothing and any estimator will do; in the
-other two it is worth twenty-four accuracy points and the incumbent proxy throws
-most of them away. The machinery earns its keep in a minority of cases, and
-nothing here says in advance which case you are in.
+finding for a practitioner than any estimator ranking. In three federations out of
+five the choice is worth almost nothing and any estimator will do; in the other
+two it is worth several accuracy points. The machinery earns its keep in a
+minority of cases, and nothing here says in advance which case you are in.
 
-**The study is capped at five members.** Finishing the full lattice needed about
-eight more hours of compute, and the larger consortia are where volume-driven
-estimators would look best, since under skew the bigger consortium usually wins.
-So this says nothing about six to ten, and the cap is the first thing to lift.
+**So the practical answer is unglamorous.** Take the largest consortium your
+policies permit. It maximises expected accuracy, every estimator here recommends
+it, and the cheap ones recommend it just as well as the expensive one. What the
+composition algebra contributes is deciding *which* consortia are permitted at
+all — and that part needs no estimator, because it is exact.
 
 ### Why the first ground-truth run was thrown away
 
@@ -928,7 +959,7 @@ Five figures, rendered from the committed CSVs by
 | [`selection.svg`](results/figures/selection.svg) | policy-blind selection wins on paper, loses deployed | `selection.csv` |
 | [`tcga.svg`](results/figures/tcga.svg) | on real data, only the combinatorial result separates | `tcga.csv` |
 | [`measured.svg`](results/figures/measured.svg) | the assumed range halves once assignment is measured | `measured.csv` |
-| [`estimators.svg`](results/figures/estimators.svg) | divergence beats the incumbent proxy; coherence fails | `estimators.csv` |
+| [`estimators.svg`](results/figures/estimators.svg) | every estimator picks the largest feasible consortium | `estimators.csv` |
 
 ```bash
 python experiments/make_figures.py

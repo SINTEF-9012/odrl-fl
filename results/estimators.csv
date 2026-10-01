@@ -1,4 +1,4 @@
-estimator,kendall_tau,frontier_recall,frontier_precision,regret,regret_lo,regret_hi,rank_of_best,n_feasible,true_frontier_size,front_spread,seeds
-coverage,0.2405,0.0,0.0,0.0938,0.0028,0.189,254.0,392.0,3.2,0.0248,5
-divergence,0.3824,0.0,0.0,0.0176,0.0016,0.042,218.2,392.0,3.2,0.0248,5
-gradient,-0.1117,0.0,0.0,0.1084,0.0211,0.2071,357.4,392.0,3.2,0.0248,5
+estimator,kendall_tau,frontier_recall,frontier_precision,regret,regret_lo,regret_hi,rank_of_best,n_feasible,true_frontier_size,front_spread,pick_size,best_size,seeds
+coverage,0.2349,0.0,0.0,0.0803,0.0053,0.1732,336.2,533.4,2.6,0.0249,8.4,3.4,5
+divergence,0.3405,0.0,0.0,0.0803,0.0053,0.1732,302.4,533.4,2.6,0.0249,8.4,3.4,5
+gradient,-0.0774,0.0,0.0,0.1032,0.0209,0.2021,456.0,533.4,2.6,0.0249,5.2,3.4,5

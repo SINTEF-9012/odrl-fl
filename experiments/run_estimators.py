@@ -197,6 +197,8 @@ def evaluate_seed(
         order = sorted(range(len(feasible)), key=lambda i: -scores[i])
 
         out[name] = {
+            "pick_size": len(feasible[pick]),
+            "best_size": len(feasible[best_index]),
             "tau": kendall_tau(scores, accuracy),
             "recall": len(overlap) / len(true_front),
             "precision": len(overlap) / len(est_front),
@@ -293,8 +295,24 @@ def main(argv: list[str] | None = None) -> int:
               "result.")
     print()
 
-    print(f"  {'estimator':>12}  {'tau':>7}  {'recall':>7}  {'precision':>9}  "
-          f"{'regret (95% CI)':>26}")
+    # Regret is measured against the single best-performing consortium observed,
+    # and that maximum is itself a draw. Small consortia are far more variable
+    # than large ones -- the standard deviation of accuracy roughly halves from
+    # one contributor to ten -- while the ceiling is flat, so the argmax over
+    # hundreds of candidates is usually a small consortium that got lucky rather
+    # than a good one. An estimator that picks the choice with the best
+    # *expected* accuracy is then charged for not having guessed the lucky draw.
+    # Printed so the asymmetry is visible instead of buried in the number.
+    best_sizes = [m["best_size"] for m in sample]
+    print(f"\n  the best observed consortium had {np.mean(best_sizes):.1f} members "
+          f"on average")
+    print("  (sizes: " + ", ".join(str(b) for b in best_sizes) + ")")
+    print("  Small consortia vary more and the ceiling is flat, so the argmax is")
+    print("  often a lucky small draw. Regret against it overstates estimator "
+          "error.\n")
+
+    print(f"  {'estimator':>12}  {'picks':>6}  {'tau':>7}  {'recall':>7}  "
+          f"{'precision':>9}  {'regret (95% CI)':>26}")
     rows = []
     for name, metrics in per_seed.items():
         if not metrics:
@@ -306,8 +324,9 @@ def main(argv: list[str] | None = None) -> int:
         precision = float(np.mean([m["precision"] for m in metrics]))
         regret = float(np.mean(regrets))
 
-        print(f"  {name:>12}  {tau:>7.3f}  {recall:>7.1%}  {precision:>9.1%}  "
-              f"{regret:>9.4f} [{lo:.4f}, {hi:.4f}]")
+        pick_size = float(np.mean([m["pick_size"] for m in metrics]))
+        print(f"  {name:>12}  {pick_size:>6.1f}  {tau:>7.3f}  {recall:>7.1%}  "
+              f"{precision:>9.1%}  {regret:>9.4f} [{lo:.4f}, {hi:.4f}]")
         rows.append({
             "estimator": name,
             "kendall_tau": round(tau, 4),
@@ -326,6 +345,8 @@ def main(argv: list[str] | None = None) -> int:
             "front_spread": round(
                 float(np.mean([m["front_spread"] for m in metrics])), 5
             ),
+            "pick_size": round(float(np.mean([m["pick_size"] for m in metrics])), 1),
+            "best_size": round(float(np.mean([m["best_size"] for m in metrics])), 1),
             "seeds": len(metrics),
         })
 
@@ -344,7 +365,9 @@ def main(argv: list[str] | None = None) -> int:
               f"{len(saturated_seeds)} of")
         print(f"  {len(spreads)} federations are saturated, so non-dominance is "
               "settled by noise")
-        print("  rather than by the estimator. Regret remains meaningful.\n")
+        print("  rather than by the estimator. Regret is the only usable number,")
+        print("  and it is an upper bound: it charges the estimator for failing to")
+        print("  guess a lucky small draw it had no way to identify.\n")
     costly = [r for r in rows if r["regret_lo"] > 0.0]
     unclear = [r for r in rows if r["regret_lo"] <= 0.0]
     if costly:
