@@ -1,0 +1,4 @@
+estimator,kendall_tau,frontier_recall,frontier_precision,regret,regret_lo,regret_hi,rank_of_best,n_feasible,true_frontier_size,front_spread,seeds
+coverage,0.2405,0.0,0.0,0.0938,0.0028,0.189,254.0,392.0,3.2,0.0248,5
+divergence,0.3824,0.0,0.0,0.0176,0.0016,0.042,218.2,392.0,3.2,0.0248,5
+gradient,-0.1117,0.0,0.0,0.1084,0.0211,0.2071,357.4,392.0,3.2,0.0248,5

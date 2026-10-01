@@ -2,36 +2,37 @@
 <rect width="720" height="430" fill="#ffffff"/>
 <text x="70" y="24" font-size="15" font-weight="600" fill="#1a1a1a">TCGA-BRCA: what real data settles, and what it does not</text>
 <text x="70" y="44" font-size="11.5" fill="#6b6b6b">16 real institutions, 1096 patients, Cox model scored by Harrell's C-index</text>
-<line x1="70" y1="312.0" x2="700" y2="312.0" stroke="#e4e4e4" stroke-width="1"/>
-<text x="61" y="315.5" font-size="11" text-anchor="end" fill="#6b6b6b">0.0</text>
-<line x1="70" y1="247.0" x2="700" y2="247.0" stroke="#e4e4e4" stroke-width="1"/>
-<text x="61" y="250.5" font-size="11" text-anchor="end" fill="#6b6b6b">0.2</text>
-<line x1="70" y1="182.0" x2="700" y2="182.0" stroke="#e4e4e4" stroke-width="1"/>
-<text x="61" y="185.5" font-size="11" text-anchor="end" fill="#6b6b6b">0.4</text>
-<line x1="70" y1="117.0" x2="700" y2="117.0" stroke="#e4e4e4" stroke-width="1"/>
-<text x="61" y="120.5" font-size="11" text-anchor="end" fill="#6b6b6b">0.6</text>
+<line x1="70" y1="300.0" x2="700" y2="300.0" stroke="#e4e4e4" stroke-width="1"/>
+<text x="61" y="303.5" font-size="11" text-anchor="end" fill="#6b6b6b">0.0</text>
+<line x1="70" y1="238.0" x2="700" y2="238.0" stroke="#e4e4e4" stroke-width="1"/>
+<text x="61" y="241.5" font-size="11" text-anchor="end" fill="#6b6b6b">0.2</text>
+<line x1="70" y1="176.0" x2="700" y2="176.0" stroke="#e4e4e4" stroke-width="1"/>
+<text x="61" y="179.5" font-size="11" text-anchor="end" fill="#6b6b6b">0.4</text>
+<line x1="70" y1="114.0" x2="700" y2="114.0" stroke="#e4e4e4" stroke-width="1"/>
+<text x="61" y="117.5" font-size="11" text-anchor="end" fill="#6b6b6b">0.6</text>
 <line x1="70" y1="52.0" x2="700" y2="52.0" stroke="#e4e4e4" stroke-width="1"/>
 <text x="61" y="55.5" font-size="11" text-anchor="end" fill="#6b6b6b">0.8</text>
-<rect class="bar" x="111.0" y="103.1" width="58.0" height="208.9" fill="#0072B2" rx="2"/>
-<text x="140.0" y="97.1" font-size="10.5" font-weight="600" text-anchor="middle" fill="#1a1a1a">0.643</text>
-<rect class="bar" x="321.0" y="106.7" width="58.0" height="205.3" fill="#0072B2" rx="2"/>
-<text x="350.0" y="100.7" font-size="10.5" font-weight="600" text-anchor="middle" fill="#1a1a1a">0.632</text>
-<rect class="bar" x="531.0" y="106.6" width="58.0" height="205.4" fill="#0072B2" rx="2"/>
-<text x="560.0" y="100.6" font-size="10.5" font-weight="600" text-anchor="middle" fill="#1a1a1a">0.632</text>
-<rect class="bar" x="595.0" y="270.7" width="58.0" height="41.3" fill="#D55E00" rx="2"/>
-<text x="624.0" y="264.7" font-size="10.5" font-weight="600" text-anchor="middle" fill="#1a1a1a">0.127</text>
-<text x="175.0" y="332" font-size="11.5" text-anchor="middle" fill="#1a1a1a">whole federation</text>
-<text x="385.0" y="332" font-size="11.5" text-anchor="middle" fill="#1a1a1a">policy-aware</text>
-<text x="385.0" y="347" font-size="10.5" text-anchor="middle" fill="#6b6b6b">usable 100% of the time</text>
-<text x="595.0" y="332" font-size="11.5" text-anchor="middle" fill="#1a1a1a">policy-blind</text>
-<text x="595.0" y="347" font-size="10.5" text-anchor="middle" fill="#6b6b6b">usable 20% of the time</text>
-<line x1="70" y1="149.5" x2="700" y2="149.5" stroke="#1a1a1a" stroke-width="1.3" stroke-dasharray="5 4"/>
-<text x="696" y="143.5" font-size="10.5" text-anchor="end" fill="#1a1a1a">chance (C-index 0.5)</text>
-<line x1="70" y1="312" x2="700" y2="312" stroke="#1a1a1a" stroke-width="1.2"/>
-<text x="16" y="182.0" font-size="11.5" fill="#1a1a1a" text-anchor="middle" transform="rotate(-90 16 182.0)">C-index</text>
-<rect x="70" y="366" width="12" height="12" fill="#0072B2" rx="2"/>
-<text x="88" y="376" font-size="11" fill="#1a1a1a">C-index as measured</text>
-<rect x="227.39999999999998" y="366" width="12" height="12" fill="#D55E00" rx="2"/>
-<text x="245.39999999999998" y="376" font-size="11" fill="#1a1a1a">deployable</text>
-<text x="70" y="420" font-size="10.5" fill="#6b6b6b">The C-index bars differ by ~0.01 against a bootstrap interval of +/-0.11, so they are not separable. The deployable bar is, because feasibility does not depend on a metric.</text>
+<rect class="bar" x="111.0" y="100.7" width="58.0" height="199.3" fill="#0072B2" rx="2"/>
+<text x="140.0" y="94.7" font-size="10.5" font-weight="600" text-anchor="middle" fill="#1a1a1a">0.643</text>
+<rect class="bar" x="321.0" y="104.2" width="58.0" height="195.8" fill="#0072B2" rx="2"/>
+<text x="350.0" y="98.2" font-size="10.5" font-weight="600" text-anchor="middle" fill="#1a1a1a">0.632</text>
+<rect class="bar" x="531.0" y="104.1" width="58.0" height="195.9" fill="#0072B2" rx="2"/>
+<text x="560.0" y="98.1" font-size="10.5" font-weight="600" text-anchor="middle" fill="#1a1a1a">0.632</text>
+<rect class="bar" x="595.0" y="260.6" width="58.0" height="39.4" fill="#D55E00" rx="2"/>
+<text x="624.0" y="254.6" font-size="10.5" font-weight="600" text-anchor="middle" fill="#1a1a1a">0.127</text>
+<text x="175.0" y="320" font-size="11.5" text-anchor="middle" fill="#1a1a1a">whole federation</text>
+<text x="385.0" y="320" font-size="11.5" text-anchor="middle" fill="#1a1a1a">policy-aware</text>
+<text x="385.0" y="335" font-size="10.5" text-anchor="middle" fill="#6b6b6b">usable 100% of the time</text>
+<text x="595.0" y="320" font-size="11.5" text-anchor="middle" fill="#1a1a1a">policy-blind</text>
+<text x="595.0" y="335" font-size="10.5" text-anchor="middle" fill="#6b6b6b">usable 20% of the time</text>
+<line x1="70" y1="145.0" x2="700" y2="145.0" stroke="#1a1a1a" stroke-width="1.3" stroke-dasharray="5 4"/>
+<text x="696" y="139.0" font-size="10.5" text-anchor="end" fill="#1a1a1a">chance (C-index 0.5)</text>
+<line x1="70" y1="300" x2="700" y2="300" stroke="#1a1a1a" stroke-width="1.2"/>
+<text x="16" y="176.0" font-size="11.5" fill="#1a1a1a" text-anchor="middle" transform="rotate(-90 16 176.0)">C-index</text>
+<rect x="70" y="354" width="12" height="12" fill="#0072B2" rx="2"/>
+<text x="88" y="364" font-size="11" fill="#1a1a1a">C-index as measured</text>
+<rect x="227.39999999999998" y="354" width="12" height="12" fill="#D55E00" rx="2"/>
+<text x="245.39999999999998" y="364" font-size="11" fill="#1a1a1a">deployable</text>
+<text x="70" y="406" font-size="10.5" fill="#6b6b6b">The C-index bars differ by ~0.01 against a bootstrap interval of +/-0.11, so they are not separable. The deployable</text>
+<text x="70" y="420" font-size="10.5" fill="#6b6b6b">bar is, because feasibility does not depend on a metric.</text>
 </svg>

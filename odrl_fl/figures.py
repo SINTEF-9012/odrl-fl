@@ -128,6 +128,38 @@ def nice_ticks(lo: float, hi: float, target: int = 6) -> list[float]:
     return ticks
 
 
+#: Rough average glyph width at the note font size, in pixels. Measured rather
+#: than guessed: the notes are the only wrapped text and they only need to not
+#: overflow, so a conservative estimate beats a font-metrics dependency.
+NOTE_CHAR_PX = 5.4
+
+
+def wrap_note(text: str, width_px: float, char_px: float = NOTE_CHAR_PX) -> list[str]:
+    """Break a note into lines that fit the plot width.
+
+    SVG does not wrap text. A `<text>` element longer than the canvas is not
+    clipped by the renderer so much as simply drawn past the edge, where the
+    browser shows nothing and reports no error -- which is how five of these
+    figures shipped with their notes cut off mid-sentence.
+    """
+    if not text:
+        return []
+    limit = max(int(width_px / char_px), 20)
+    lines: list[str] = []
+    current = ""
+    for word in text.split():
+        candidate = f"{current} {word}".strip()
+        if len(candidate) <= limit:
+            current = candidate
+        else:
+            if current:
+                lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+    return lines
+
+
 def _bounds(values, lo, hi):
     if lo is None:
         lo = min(values)
@@ -174,9 +206,10 @@ def line_chart(
     y = y or Axis()
 
     pad_l, pad_r = 70, 20
-    pad_t = 36 + (16 if subtitle else 0)
-    pad_b = 96 + (16 if notes else 0)
     plot_w = width - pad_l - pad_r
+    note_lines = wrap_note(notes, plot_w)
+    pad_t = 36 + (16 if subtitle else 0)
+    pad_b = 96 + 14 * len(note_lines)
     plot_h = height - pad_t - pad_b
 
     all_x = [v for s in series for v in s.xs]
@@ -287,9 +320,11 @@ def line_chart(
         )
         cursor += entry_w
 
-    if notes:
+    for i, line in enumerate(note_lines):
+        y = height - 10 - 14 * (len(note_lines) - 1 - i)
         parts.append(
-            f'<text x="{pad_l}" y="{height - 10}" font-size="10.5" fill="{MUTED}">{_esc(notes)}</text>'
+            f'<text x="{pad_l}" y="{y}" font-size="10.5" '
+            f'fill="{MUTED}">{_esc(line)}</text>'
         )
 
     parts.append("</svg>")
@@ -322,9 +357,10 @@ def grouped_bar_chart(
     y = y or Axis()
     sublabels = sublabels or {}
     pad_l, pad_r = 70, 20
-    pad_t = 36 + (16 if subtitle else 0)
-    pad_b = 88 + (16 if notes else 0) + (14 if sublabels else 0)
     plot_w = width - pad_l - pad_r
+    note_lines = wrap_note(notes, plot_w)
+    pad_t = 36 + (16 if subtitle else 0)
+    pad_b = 88 + 14 * len(note_lines) + (14 if sublabels else 0)
     plot_h = height - pad_t - pad_b
 
     groups: list[str] = []
@@ -432,9 +468,11 @@ def grouped_bar_chart(
         )
         cursor += 32 + 6.6 * len(label)
 
-    if notes:
+    for i, line in enumerate(note_lines):
+        y = height - 10 - 14 * (len(note_lines) - 1 - i)
         parts.append(
-            f'<text x="{pad_l}" y="{height - 10}" font-size="10.5" fill="{MUTED}">{_esc(notes)}</text>'
+            f'<text x="{pad_l}" y="{y}" font-size="10.5" '
+            f'fill="{MUTED}">{_esc(line)}</text>'
         )
     parts.append("</svg>")
     return "\n".join(parts)

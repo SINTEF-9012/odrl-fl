@@ -754,9 +754,6 @@ python experiments/run_groundtruth.py     # ~4 hours, resumable
 python experiments/run_estimators.py
 ```
 
-> **Status: machinery complete, ground truth not yet run.** No numbers are quoted
-> here because none have been measured at a setting that would support them. The
-> first attempt was discarded, and why it was discarded is the useful part.
 
 Selection searches a powerset. The legal half of that search is cheap --
 composition needs no data and no training, and under a tight request it removed
@@ -777,6 +774,8 @@ all of the form *quality × √volume*:
 `gradient` is the interesting one: O(n) precompute over the pool, then O(1) per
 subset, which is what makes querying thousands of candidates viable at all.
 
+![Can a consortium be chosen without training it?](results/figures/estimators.svg)
+
 ### The question is frontier fidelity, not accuracy
 
 Selection never reads the estimate, only the ordering — so an estimator can be
@@ -788,6 +787,61 @@ actually lost by deploying the estimator's pick.
 A ranking error only matters where it flips a dominance relation. Errors among
 already-dominated candidates are free; one swap at the frontier boundary can
 remove the best option entirely.
+
+### What the lattice says
+
+All 637 consortia of up to five members from a pool of ten, five federations,
+trained to convergence at `alpha = 0.3`. Regret is the accuracy lost by deploying
+the estimator's pick rather than the best available:
+
+| estimator | Kendall tau | regret (95% CI) |
+|---|---|---|
+| `coverage` — the incumbent | 0.241 | 0.094 [0.003, 0.189] |
+| **`divergence`** | **0.382** | **0.018 [0.002, 0.042]** |
+| `gradient` | **−0.112** | 0.108 [0.021, 0.207] |
+
+**Label divergence is a real improvement on the proxy the project already used** —
+about five times less regret, and the interval excludes zero. Choosing by it
+costs under two accuracy points against an oracle that trains everything.
+
+**Gradient coherence fails, and it was the novel one.** Its rank correlation is
+*negative*: consortia whose clients agree at initialisation tend to finish
+slightly worse, because coherence falls as contributors are added while accuracy
+rises. The signal is confounded by size, and the idea does not survive contact
+with the lattice.
+
+**Every estimator costs real accuracy.** No interval includes zero, so
+training-free selection is cheaper but not free. Whether two points is a fair
+price for not training 637 models is a judgement, and the number is now available
+to make it with.
+
+### Two things the headline would hide
+
+**Frontier recall and precision are 0% and mean nothing here.** Three of the five
+federations are *saturated* -- every feasible consortium performs within 0.0025
+accuracy of every other, so which points are non-dominated is settled by noise
+rather than by the estimator. The evaluation detects this and says so rather than
+letting a reader take 0% for a finding.
+
+| federation | feasible | frontier | spread | reading |
+|---|---|---|---|---|
+| 0 | 291 | 5 | 0.0005 | saturated |
+| 1 | 637 | 3 | 0.0660 | discriminating |
+| 2 | 250 | 1 | 0.0000 | saturated |
+| 3 | 544 | 5 | 0.0025 | saturated |
+| 4 | 238 | 2 | 0.0550 | discriminating |
+
+**Most of the time, consortium choice barely matters.** That is the more useful
+finding for a practitioner than any estimator ranking. In three federations out
+of five the choice is worth almost nothing and any estimator will do; in the
+other two it is worth twenty-four accuracy points and the incumbent proxy throws
+most of them away. The machinery earns its keep in a minority of cases, and
+nothing here says in advance which case you are in.
+
+**The study is capped at five members.** Finishing the full lattice needed about
+eight more hours of compute, and the larger consortia are where volume-driven
+estimators would look best, since under skew the bigger consortium usually wins.
+So this says nothing about six to ten, and the cap is the first thing to lift.
 
 ### Why the first ground-truth run was thrown away
 
@@ -842,6 +896,7 @@ Five figures, rendered from the committed CSVs by
 | [`selection.svg`](results/figures/selection.svg) | policy-blind selection wins on paper, loses deployed | `selection.csv` |
 | [`tcga.svg`](results/figures/tcga.svg) | on real data, only the combinatorial result separates | `tcga.csv` |
 | [`measured.svg`](results/figures/measured.svg) | the assumed range halves once assignment is measured | `measured.csv` |
+| [`estimators.svg`](results/figures/estimators.svg) | divergence beats the incumbent proxy; coherence fails | `estimators.csv` |
 
 ```bash
 python experiments/make_figures.py
@@ -878,7 +933,7 @@ sit behind cheap gates. Increments 0–5 involve no federated learning at all.
 | 10 | Real medical dataset (TCGA-BRCA) + harness | **done** |
 | 11 | Results and figures | **done** |
 | 12 | Measured assignment: EGA DAC structure | **done** |
-| 13 | Training-free utility estimation | machinery ready, ground truth pending |
+| 13 | Training-free utility estimation | **done** |
 
 Increment 4 is the decision point. If capability erosion turns out to be either
 trivial (almost nothing erodes) or degenerate (everything collapses at two

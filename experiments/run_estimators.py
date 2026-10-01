@@ -37,6 +37,7 @@ from __future__ import annotations
 import argparse
 import csv
 import sys
+from math import comb
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -175,6 +176,14 @@ def evaluate_seed(
     true_front = pareto_front(truth_points)
     best_index = max(range(len(feasible)), key=lambda i: accuracy[i])
 
+    # How much accuracy separates the frontier's own points. When the task has a
+    # ceiling, every frontier point sits in the saturated region and this spread
+    # collapses -- at which point *which* points are non-dominated is decided by
+    # noise, and recall and precision stop measuring anything about the
+    # estimator. Recorded so the reader is told rather than left to infer it.
+    front_accuracy = [accuracy[i] for i in true_front]
+    front_spread = max(front_accuracy) - min(front_accuracy)
+
     out: dict[str, dict] = {}
     for name, factory in ESTIMATORS.items():
         estimate = factory(pool, alpha=alpha, seed=seed)
@@ -195,6 +204,8 @@ def evaluate_seed(
             "rank_of_best": order.index(best_index) + 1,
             "n_feasible": len(feasible),
             "front_size": len(true_front),
+            "front_spread": front_spread,
+            "ceiling": max(accuracy),
         }
     return out
 
@@ -218,11 +229,20 @@ def main(argv: list[str] | None = None) -> int:
         print("matched to an estimator setting. Re-run run_groundtruth.py.")
         return 1
 
-    expected = 2**args.pool - 1
+    # The lattice may be capped at a maximum consortium size, so completeness
+    # is "every subset up to the largest size present", not "all 2^n - 1".
+    # Inferring the bound from the data rather than taking it on trust means a
+    # run that stopped halfway through a size still reports as incomplete.
+    max_size = max(len(s) for s in truth)
+    expected = sum(comb(args.pool, k) for k in range(1, max_size + 1))
     if len(truth) < expected:
-        print(f"Ground truth is incomplete: {len(truth)} of {expected} subsets.")
+        print(f"Ground truth is incomplete: {len(truth)} of {expected} subsets "
+              f"up to size {max_size}.")
         print("Re-run experiments/run_groundtruth.py -- it resumes.")
         return 1
+    if max_size < args.pool:
+        print(f"  NOTE: capped at consortia of {max_size}; this says nothing "
+              f"about larger ones\n")
 
     seeds = sorted({seed for runs in truth.values() for seed in runs})
     print(f"Estimator fidelity, pool {args.pool}")
@@ -245,7 +265,33 @@ def main(argv: list[str] | None = None) -> int:
     sample = next(v for v in per_seed.values() if v)
     print(f"  feasible per federation  {np.mean([m['n_feasible'] for m in sample]):.0f}")
     print(f"  true frontier size       {np.mean([m['front_size'] for m in sample]):.1f}")
-    print(f"  federations scored       {len(sample)}\n")
+    print(f"  federations scored       {len(sample)}")
+
+    # Per federation, not averaged. Averaging the spread hides the thing that
+    # matters most here: some federations are saturated, where every consortium
+    # performs alike and no estimator can be wrong, and some discriminate, where
+    # the choice is worth tens of accuracy points. A mean over the two describes
+    # neither, and reports a comfortable number for a study that is really two
+    # different studies stapled together.
+    spreads = [m["front_spread"] for m in sample]
+    saturated_seeds = [i for i, v in enumerate(spreads) if v < 0.01]
+
+    print("\n  per federation")
+    print(f"    {'seed':>5}  {'feasible':>8}  {'frontier':>8}  {'spread':>8}  "
+          f"{'ceiling':>8}")
+    for i, m in enumerate(sample):
+        mark = "  (saturated)" if m["front_spread"] < 0.01 else ""
+        print(f"    {i:>5}  {m['n_feasible']:>8}  {m['front_size']:>8}  "
+              f"{m['front_spread']:>8.4f}  {m['ceiling']:>8.4f}{mark}")
+
+    if saturated_seeds:
+        print(f"\n  {len(saturated_seeds)} of {len(spreads)} federations are "
+              "saturated: every consortium performs")
+        print("  alike, so no estimator can be wrong there and recall and "
+              "precision")
+        print("  measure nothing. The discriminating federations carry the "
+              "result.")
+    print()
 
     print(f"  {'estimator':>12}  {'tau':>7}  {'recall':>7}  {'precision':>9}  "
           f"{'regret (95% CI)':>26}")
@@ -277,6 +323,9 @@ def main(argv: list[str] | None = None) -> int:
             "true_frontier_size": round(
                 float(np.mean([m["front_size"] for m in metrics])), 2
             ),
+            "front_spread": round(
+                float(np.mean([m["front_spread"] for m in metrics])), 5
+            ),
             "seeds": len(metrics),
         })
 
@@ -290,6 +339,12 @@ def main(argv: list[str] | None = None) -> int:
     # An interval straddling zero means the federations disagree about whether
     # the estimator costs anything, which is not the same as it being free.
     print("\nReading\n")
+    if saturated_seeds:
+        print(f"  Frontier recall and precision are not interpretable: "
+              f"{len(saturated_seeds)} of")
+        print(f"  {len(spreads)} federations are saturated, so non-dominance is "
+              "settled by noise")
+        print("  rather than by the estimator. Regret remains meaningful.\n")
     costly = [r for r in rows if r["regret_lo"] > 0.0]
     unclear = [r for r in rows if r["regret_lo"] <= 0.0]
     if costly:

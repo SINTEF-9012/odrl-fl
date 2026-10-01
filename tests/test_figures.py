@@ -23,6 +23,7 @@ from odrl_fl.figures import (
     line_chart,
     nice_ticks,
     save,
+    wrap_note,
 )
 
 
@@ -195,3 +196,51 @@ class TestSave:
         unchanged file -- otherwise every run shows up as a spurious diff."""
         args = ([Series("a", [1, 2], [0.3, 0.7])],)
         assert line_chart(*args) == line_chart(*args)
+
+
+class TestNoteWrapping:
+    """SVG does not wrap text, and an over-long note is drawn past the canvas
+    edge where the browser shows nothing and reports no error. Five figures
+    shipped with their notes cut off mid-sentence before this was caught."""
+
+    def test_a_short_note_stays_one_line(self):
+        assert wrap_note("short note", 630) == ["short note"]
+
+    def test_empty_note_produces_no_lines(self):
+        assert wrap_note("", 630) == []
+
+    def test_a_long_note_is_split(self):
+        text = " ".join(["word"] * 100)
+        lines = wrap_note(text, 630)
+        assert len(lines) > 1
+
+    def test_every_line_fits_the_width(self):
+        text = (
+            "Regret is the accuracy lost by deploying the estimator's pick, "
+            "averaged over five federations, with a bootstrap interval that "
+            "straddles zero when the federations disagree about the cost."
+        )
+        width = 630
+        for line in wrap_note(text, width):
+            assert len(line) * 5.4 <= width
+
+    def test_no_words_are_lost(self):
+        text = "the quick brown fox jumps over the lazy dog " * 6
+        assert " ".join(wrap_note(text, 200)).split() == text.split()
+
+    def test_a_word_longer_than_the_line_still_appears(self):
+        """Better an overflowing line than a silently dropped one."""
+        assert wrap_note("x" * 400, 200) == ["x" * 400]
+
+    def test_notes_reach_the_rendered_svg_in_full(self):
+        text = (
+            "A deliberately long note that would previously have been drawn "
+            "past the right-hand edge of the canvas and vanished without any "
+            "error at all, which is precisely the failure mode worth a test."
+        )
+        svg = line_chart([Series("a", [1, 2], [0, 1])], notes=text)
+        rendered = " ".join(
+            e.text or "" for e in parse(svg).iter() if e.tag.endswith("text")
+        )
+        for word in text.split():
+            assert word.replace("'", "'") in rendered or word in rendered

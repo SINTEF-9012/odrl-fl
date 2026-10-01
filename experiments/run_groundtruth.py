@@ -44,14 +44,22 @@ FIELDNAMES = [
 ]
 
 
-def all_subsets(pool: int) -> list[tuple[int, ...]]:
-    """Every non-empty subset, smallest first.
+def all_subsets(pool: int, max_size: int | None = None) -> list[tuple[int, ...]]:
+    """Every non-empty subset up to `max_size`, smallest first.
 
-    Ordered by size so an interrupted run leaves a usable prefix: the small
-    subsets that most estimators find hardest to rank are already done.
+    Ordered by size so an interrupted run leaves a *usable* prefix rather than a
+    random sample: every subset up to some size is present, which is still an
+    exhaustive lattice over a stated bound.
+
+    `max_size` exists because the cost of this study is dominated by the large
+    subsets -- training a ten-member consortium costs ten times a singleton, and
+    sizes six and up are two thirds of the total work for a pool of ten. Capping
+    buys a complete answer about small consortia instead of a partial one about
+    all of them.
     """
+    limit = pool if max_size is None else min(max_size, pool)
     out: list[tuple[int, ...]] = []
-    for size in range(1, pool + 1):
+    for size in range(1, limit + 1):
         out.extend(combinations(range(pool), size))
     return out
 
@@ -68,6 +76,10 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Exhaustive subset ground truth")
     parser.add_argument("--pool", type=int, default=10)
     parser.add_argument("--seeds", type=int, default=5)
+    parser.add_argument(
+        "--max-size", type=int, default=None,
+        help="largest consortium to train; omit for the full lattice",
+    )
     # 20 rounds because the task has not converged at 5 -- accuracy was
     # still climbing +0.068 per round, so a 5-round number measures how
     # fast a consortium starts rather than how good its model is.
@@ -83,10 +95,11 @@ def main(argv: list[str] | None = None) -> int:
     path = Path(args.out)
     path.parent.mkdir(parents=True, exist_ok=True)
     done = load_done(path)
-    subsets = all_subsets(args.pool)
+    subsets = all_subsets(args.pool, args.max_size)
     total = len(subsets) * args.seeds
 
-    print(f"Exhaustive ground truth over a pool of {args.pool}")
+    bound = (f" (consortia of up to {args.max_size})" if args.max_size else "")
+    print(f"Exhaustive ground truth over a pool of {args.pool}{bound}")
     print(f"  {len(subsets)} subsets x {args.seeds} seeds = {total} runs")
     print(f"  alpha {args.alpha}, {args.rounds} rounds")
     if done:

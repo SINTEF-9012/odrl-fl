@@ -291,44 +291,46 @@ def fig_measured(rows: list[dict]) -> str:
 
 
 def fig_estimators(rows: list[dict]) -> str:
-    """How much of the frontier each training-free estimator keeps.
+    """What choosing without training costs, in accuracy.
 
-    All three bars are in [0, 1] so they share an axis honestly. Regret is the
-    number that actually matters to a practitioner and is not a rate, so it goes
-    under each estimator's name rather than being forced onto the same scale.
+    Regret only. Frontier recall and precision are also computed, and are 0% for
+    every estimator, but three of the five federations are saturated -- every
+    consortium performs within 0.0025 of every other -- so non-dominance there is
+    settled by noise rather than by the estimator. Plotting two metrics that
+    measure nothing alongside one that does would hand them equal visual weight
+    and invite exactly the wrong conclusion. They stay in `estimators.csv` for
+    anyone who wants them.
+
+    Lower is better here, which is unusual for a bar chart, so the axis says so.
     """
     bars = []
     sublabels: dict[str, str] = {}
     for row in rows:
         name = row["estimator"]
-        bars += [
-            Bar(name, "rank correlation", max(fnum(row, "kendall_tau"), 0.0),
-                annotation=f"{fnum(row, 'kendall_tau'):.2f}"),
-            Bar(name, "frontier recall", fnum(row, "frontier_recall"),
-                annotation=f"{fnum(row, 'frontier_recall'):.0%}"),
-            Bar(name, "frontier precision", fnum(row, "frontier_precision"),
-                annotation=f"{fnum(row, 'frontier_precision'):.0%}"),
-        ]
+        regret = fnum(row, "regret")
+        bars.append(
+            Bar(name, "accuracy lost", regret, annotation=f"{regret:.3f}")
+        )
         sublabels[name] = (
-            f"regret {fnum(row, 'regret'):.3f} "
             f"[{fnum(row, 'regret_lo'):.3f}, {fnum(row, 'regret_hi'):.3f}]"
+            f"   tau {fnum(row, 'kendall_tau'):+.2f}"
         )
 
     seeds = int(fnum(rows[0], "seeds")) if rows else 0
     return grouped_bar_chart(
         bars,
-        title="Can a consortium be chosen without training it?",
+        title="What it costs to choose a consortium without training it",
         subtitle=(
-            "Three estimators that never train, scored against an exhaustively "
-            "trained lattice"
+            "Accuracy given up against an oracle that trains every candidate "
+            "-- lower is better"
         ),
-        y=Axis(label="agreement with ground truth", lo=0, hi=1, fmt="{:.0%}"),
+        y=Axis(label="accuracy lost (lower is better)", lo=0, fmt="{:.2f}"),
         sublabels=sublabels,
         notes=(
-            "Regret is the accuracy lost by deploying the estimator's pick, "
-            f"averaged over {seeds} federations; an interval straddling zero "
-            "means they disagree rather than that it is free. 'coverage' is the "
-            "proxy the project already used."
+            f"Mean over {seeds} federations, with a 95% bootstrap interval and "
+            "the rank correlation against true accuracy. 'coverage' is the proxy "
+            "the project already used; 'gradient' correlates negatively, so the "
+            "cheap gradient signal does not survive contact with the lattice."
         ),
     )
 
