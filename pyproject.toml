@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "odrl-fl"
 version = "0.1.0"
 description = "Policy-carrying models: ODRL usage policies that compose through federated aggregation"
-license = { text = "Apache-2.0" }
+license = { text = "MIT" }
 readme = "README.md"
 requires-python = ">=3.11"
 
