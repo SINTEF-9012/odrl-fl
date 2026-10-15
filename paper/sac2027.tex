@@ -1,0 +1,546 @@
+\documentclass[sigconf,anonymous,review]{acmart}
+
+%% ---------------------------------------------------------------------------
+%% SAC 2027, Semantic Technology track.
+%% Double-blind: no names, no affiliation, no repository link in the source.
+%% Replace \repourl with an anonymised link before submission, and with the
+%% real link in the camera-ready version. It is defined once, here.
+%% ---------------------------------------------------------------------------
+\newcommand{\repourl}{\textsc{[anonymised repository]}}
+
+\settopmatter{printacmref=false}
+\renewcommand\footnotetextcopyrightpermission[1]{}
+
+\usepackage{booktabs}
+\usepackage{graphicx}
+
+\begin{document}
+
+\title{Composing Usage Policies for Models Trained on Many Sources}
+
+\begin{abstract}
+Machine learning models are increasingly built from data held by several
+organisations, each of which attaches its own conditions of use. Standards exist
+for expressing those conditions on a single dataset, and a new ODRL profile
+standardises actions such as \emph{ai-training} and \emph{ai-augment}. None of
+them answer the question that arises as soon as more than one source is
+involved: what may be done with the model that results.
+
+We give a composition algebra for ODRL policies and prove it is anti-monotone.
+Adding a contributor can never widen what the group may lawfully do with the
+model. We ground the algebra in the GA4GH Data Use Ontology, report that one
+widely used code cannot be expressed at all because its truth depends on the set
+being composed, and measure how far capability falls as a group grows. The rate
+at which it falls depends on how similar the contributors' terms are, which
+earlier work had to assume; we measure it instead, from the data access
+committees of a public archive, and report it as an interval rather than a point.
+
+We then use the algebra to select a group. Because compatibility is not
+transitive, this is a search over subsets rather than a filter over candidates,
+and anti-monotonicity makes the search tractable: it removes up to 98.6\% of the
+space without training anything. In our corpus a group chosen without regard to
+policy is permitted to use its own model 20\% of the time. This result follows
+from combining declared terms and does not depend on any accuracy measure.
+Code and data: \repourl.
+\end{abstract}
+
+\begin{CCSXML}
+<ccs2012>
+<concept>
+<concept_id>10002951.10003260.10003282</concept_id>
+<concept_desc>Information systems~Web services</concept_desc>
+<concept_significance>300</concept_significance>
+</concept>
+<concept>
+<concept_id>10002951.10003227.10003351</concept_id>
+<concept_desc>Information systems~Data mining</concept_desc>
+<concept_significance>300</concept_significance>
+</concept>
+<concept>
+<concept_id>10010147.10010178</concept_id>
+<concept_desc>Computing methodologies~Artificial intelligence</concept_desc>
+<concept_significance>300</concept_significance>
+</concept>
+</ccs2012>
+\end{CCSXML}
+
+\ccsdesc[300]{Information systems~Web services}
+\ccsdesc[300]{Computing methodologies~Artificial intelligence}
+
+\keywords{ODRL, usage control, data governance, policy composition,
+Data Use Ontology, federated learning}
+
+\maketitle
+
+%% ---------------------------------------------------------------------------
+\section{Introduction}
+
+Large models are more and more often adapted with private data. An institution
+fine-tunes a foundation model on its own records, or builds a retrieval system
+over a private collection. When several institutions do this together, the
+result depends on data from several owners, and each owner attached conditions
+to its data.
+
+Standards for expressing those conditions exist and are in use. SPDX~\cite{spdx} describes
+software licences and supports expressions that combine them. The GA4GH Data Use
+Ontology (DUO)~\cite{duo} describes conditions on biomedical datasets and is published
+alongside real archives. The W3C Open Digital Rights Language (ODRL)~\cite{odrl-model,odrl-vocab} gives a
+general model of permissions, prohibitions, duties and constraints. In September
+2026 the ODRL community published a draft AI profile~\cite{odrl-ai} that adds actions for AI
+workflows: \emph{data-mining}, \emph{ai-training}, \emph{gen-ai},
+\emph{ai-augment}, \emph{search} and \emph{index}.
+
+All of these describe what may be done \emph{to} a dataset. None of them say what
+happens when several policies must hold at the same time, and none describe the
+artefact that training produces. This is the gap we address. The question is not
+hypothetical: the new ODRL profile defines \emph{ai-training} for fine-tuning and
+\emph{ai-augment} for retrieval and grounding, which are exactly the two ways a
+foundation model is adapted with private data today.
+
+\paragraph{Scope.} Choosing a group of contributors has two parts: which groups
+are \emph{permitted}, and which of the permitted groups produces the best model.
+This paper addresses the first. We assume a utility measure is supplied by the
+application, and we make no claim about which permitted group trains best. We
+return to this in Section~\ref{sec:selection}, where it turns out that solving
+the first part is what makes the second part affordable.
+
+\paragraph{Contributions.}
+\begin{enumerate}
+\item A composition algebra for a fragment of ODRL, with a proof that capability
+is anti-monotone in the contributor set: adding a contributor can only narrow
+what the group may do.
+\item A mapping from GA4GH DUO to that fragment, covering all 28 codes observed
+in a public archive, with the fidelity of each mapping recorded. One code cannot
+be expressed at all, and we explain why.
+\item A measurement, rather than an assumption, of how similar contributors'
+terms are in practice, taken from the data access committees of the European
+Genome-phenome Archive, and reported as an interval.
+\item A selection method that uses anti-monotonicity to prune the search over
+subsets, and a measurement of what ignoring policy costs: in our corpus a group
+chosen without regard to policy may use its own model 20\% of the time.
+\item A model bundle that carries its composed agreement, where verification
+recomputes the agreement from the recorded declarations instead of comparing a
+hash, and where composition is recursive so that reuse can only narrow rights.
+\end{enumerate}
+
+%% ---------------------------------------------------------------------------
+\section{Background}
+
+\subsection{ODRL}
+
+ODRL expresses a policy as a set of rules. A \emph{permission} allows an action,
+a \emph{prohibition} forbids one, and a \emph{duty} is an obligation that must be
+met. Rules carry \emph{constraints}, which restrict when a rule applies, for
+example to a purpose, a region or a date.
+
+We use a fragment of ODRL with five actions relevant to building a model:
+\emph{use}, \emph{aggregate}, \emph{derive}, \emph{distribute} and
+\emph{transfer}. The first three matter most. A model trained on several
+contributions is an aggregation of them, and fine-tuning it later is a
+derivation. ODRL has both in its core vocabulary, which is why it fits this
+problem better than a general access control language.
+
+The draft AI profile adds actions for AI workflows in a hierarchy, where
+\emph{gen-ai} is a kind of \emph{ai-training}, which is a kind of
+\emph{data-mining}. Our fragment can take those actions directly, because the
+algebra below treats actions through a subsumption relation rather than as flat
+labels.
+
+\subsection{Data Use Ontology}
+
+DUO~\cite{duo} is a controlled vocabulary for conditions on biomedical data, used
+by the European Genome-phenome Archive (EGA)~\cite{ega} and others. A dataset is annotated with
+codes such as HMB (health or medical or biomedical research only), NCU (no
+commercial use), or IRB (ethics approval required).
+
+We use DUO rather than invented policies because the distribution of conditions
+in the wild is itself part of the result. Inventing a distribution would leave
+the main measurement unanswerable: a reader could ask why erosion looks the way
+it does, and the only honest answer would be that we chose it.
+
+%% ---------------------------------------------------------------------------
+\section{Composing policies}
+\label{sec:algebra}
+
+Let $S$ be a set of contributors, each with a policy $p_i$. The composed
+agreement $A(S)$ is built element by element:
+
+\begin{table}[h]
+\caption{Composition rules. Every rule narrows.}
+\label{tab:rules}
+\begin{tabular}{ll}
+\toprule
+Element & Rule \\
+\midrule
+Permissions & intersect: an action needs every contributor's grant \\
+Prohibitions & union: one prohibition binds the whole group \\
+Duties & union, merged per action: the strictest applies \\
+Constraints & conjoin: set meet, or interval intersection \\
+Conflict & deny overrides \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Write $\mathrm{Cap}(S)$ for the set of actions the group may perform under
+$A(S)$. The central property follows directly from Table~\ref{tab:rules}.
+
+\paragraph{Anti-monotonicity.} For contributor sets $S \subseteq S'$,
+\[
+\mathrm{Cap}(S') \subseteq \mathrm{Cap}(S).
+\]
+Permissions intersect, so an action permitted by $A(S')$ is permitted by every
+member of $S'$ and therefore by every member of $S$. Prohibitions and duties only
+accumulate, and constraints only narrow. So admitting a contributor can never
+widen what the group may do with the model, however permissive that contributor
+is. It can only add data. Removing a contributor can only widen it.
+
+We check this property with randomised property-based testing over generated
+policies, in addition to the proof, because the implementation is what the
+experiments use.
+
+\subsection{Subsumption is necessary, not decorative}
+
+Constraints must be compared through a subsumption relation and not as strings. A
+contributor allowing use in the EU and one allowing use in Germany are
+compatible, and their meet is Germany. Under a flat vocabulary they read as a
+conflict and the capability is lost.
+
+This is not a detail. If the vocabulary were flat, part of the capability loss we
+measure in Section~\ref{sec:erosion} would be an artefact of our own modelling
+rather than a property of the policies. The same applies to the action hierarchy
+of the AI profile, where a contributor permitting \emph{data-mining} and one
+permitting only \emph{ai-training} must compose to \emph{ai-training}.
+
+%% ---------------------------------------------------------------------------
+\section{Grounding in a real vocabulary}
+\label{sec:duo}
+
+We take the distribution of conditions from EGA policy records, which are public
+and require no registration. Of 4\,817 policy records, 1\,031 carry structured
+DUO codes: an adoption rate of \textbf{21.4\%}.
+
+That number is a result about practice rather than an inconvenience. Most data
+use conditions in this archive are free text or an external link, and are not
+machine readable at all.
+
+We classify all 28 observed codes by how they map into the fragment
+(Table~\ref{tab:duo}).
+
+\begin{table}[h]
+\caption{Classification of the 28 DUO codes observed in EGA.}
+\label{tab:duo}
+\begin{tabular}{llr}
+\toprule
+Class & Meaning & $n$ \\
+\midrule
+permission & sets the purpose the data may serve & 8 \\
+restriction & a constraint or prohibition & 8 \\
+externally adjudicated & an authority decides out of band & 4 \\
+deprecated & obsolete, still present in annotations & 3 \\
+duty & an obligation rather than a restriction & 2 \\
+structural & an ontology category, not a condition & 2 \\
+out of fragment & cannot be expressed & 1 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Two of these classes deserve comment.
+
+\paragraph{Three codes are deprecated but still in use.} Codes retired from the
+ontology still appear in live annotations. A tool that meets real governance
+metadata has to decide what to do with obsolete terms.
+
+\paragraph{One code cannot be expressed at all.} DUO:0000020 (COL, collaboration
+required) means the data provider must be a participant in the work. Whether it
+is satisfied therefore depends on the very contributor set being composed. That
+is self-referential, and it is the one construct our fragment excludes by design.
+We report it rather than hide it: a widely used standard contains a condition
+that a compositional treatment cannot accept without a fixed point, and anyone
+building on DUO will meet the same problem.
+
+Every mapping carries a fidelity marker, \emph{exact} or \emph{interpretive}, so
+the places where DUO and ODRL do not line up cleanly stay visible to a reader.
+
+%% ---------------------------------------------------------------------------
+\section{How much capability is lost}
+\label{sec:erosion}
+
+We draw contributor policies from the observed distribution of DUO code sets and
+compose subsets of increasing size, measuring the share of groups that retain any
+usable permission and the share that retain the purpose they asked for.
+
+The result depends on one modelling choice: how similar the contributors' terms
+are. A group of similar institutions loses little; a group of unrelated ones
+loses a great deal. EGA gives real code frequencies and real co-occurrence, but
+earlier versions of this study had to \emph{assume} which institution holds which
+conditions, and the assumption carried the result. Across seven assumed models
+the loss at ten contributors ranged from 7\% to 77\%, which is most of the
+possible range.
+
+\subsection{Measuring similarity instead of assuming it}
+
+EGA policy records name the Data Access Committee that issues them. Grouping
+policies by committee makes similarity observable.
+
+We model similarity as a single parameter, the probability $c$ that a contributor
+adopts a shared set of conditions rather than drawing independently. For two
+contributors, writing $p$ for the chance that two independent draws coincide, the
+probability that their code sets are identical is
+\[
+\mathrm{agreement} = c^2 + (1-c)^2 p + 2c(1-c)w,
+\]
+where $w$ is the weight of the shared set. The shared set is itself drawn from
+the same distribution, so $\mathbb{E}[w]=p$ and this reduces to
+\[
+\mathrm{agreement} = p + c^2 (1-p),
+\qquad
+c = \sqrt{\frac{\mathrm{agreement}-p}{1-p}}.
+\]
+
+Measuring agreement in EGA then gives $c$. We report an interval rather than a
+point, because a committee is not a consortium. A committee is one institution
+issuing several policies, which is the most similar grouping available, so
+agreement within a committee bounds $c$ from above. Two unrelated committees
+bound it from below.
+
+\begin{table}[h]
+\caption{Similarity measured from EGA, over 1\,031 annotated policies and 899
+committees.}
+\label{tab:cohesion}
+\begin{tabular}{lrl}
+\toprule
+Quantity & Value & Implies \\
+\midrule
+chance coincidence $p$ & 0.0131 & --- \\
+agreement, different committees & 0.0118 & $c=0.000$ \\
+agreement, same committee & 0.474 & $c=0.683$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Policies from different committees agree slightly \emph{less} often than chance,
+which this model cannot express at all, since it can only add similarity. The
+lower bound is therefore zero.
+
+\subsection{Result}
+
+Table~\ref{tab:erosion} re-runs the study at both ends of the measured interval,
+and with a corpus that assumes nothing: code sets drawn whole from the committees
+that published them, keeping whatever structure EGA actually has.
+
+\begin{table}[h]
+\caption{Capability lost at ten contributors. The assumed models span 7\%--77\%.}
+\label{tab:erosion}
+\begin{tabular}{lrr}
+\toprule
+Condition & Loss at 10 & Retains any \\
+\midrule
+measured ceiling ($c=0.683$) & 16\% & 84\% \\
+\textbf{drawn from real committees} & \textbf{52\%} & \textbf{48\%} \\
+measured floor ($c=0.000$) & 53\% & 47\% \\
+\midrule
+assumed baseline, for reference & 64\% & 36\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Measuring the assignment narrows the range from 69 points wide to 37. The loss is
+large under every condition, so the direction of the result does not depend on
+the modelling choice, but the magnitude does and must always be quoted with the
+condition that produced it.
+
+The upper bound rests on the 57 committees that publish more than one
+machine-readable policy. That is a small number, and it is also a finding:
+alongside the 21.4\% adoption rate, it says that structured data use policy is
+not yet common practice.
+
+%% ---------------------------------------------------------------------------
+\section{Selecting a group}
+\label{sec:selection}
+
+If composing an arbitrary group usually yields a model nobody may use, the
+practical question is how to find a group that does.
+
+\paragraph{This is a search, not a filter.} Compatibility is not transitive. Two
+contributors can each satisfy a requirement alone and grant nothing together: a
+request for cancer research and one for neurological research are each compatible
+with general research, and incompatible with each other. Feasibility is therefore
+a property of the set, and candidates cannot be checked one at a time against a
+reference policy.
+
+\paragraph{Anti-monotonicity makes the search tractable.} Because capability only
+narrows as the set grows, feasibility is downward closed: every subset of a
+feasible set is feasible. So a contributor that fails alone can be dropped
+outright, and a set of size $k+1$ need only be considered when all its subsets of
+size $k$ are feasible. This is exactly the candidate generation of the Apriori
+algorithm~\cite{apriori}, and the pruning is sound on the legal side because the property is
+exact.
+
+\begin{table}[h]
+\caption{Selection over a pool of 16, averaged over 5 corpora. ``Blind usable''
+is how often a group chosen without regard to policy may use its own model.}
+\label{tab:selection}
+\begin{tabular}{lrr}
+\toprule
+Request & Space removed & Blind usable \\
+\midrule
+actions only & 60.9\% & 20\% \\
+purpose = cancer research & 83.7\% & 0\% \\
+purpose = research & 98.6\% & 0\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Two things in Table~\ref{tab:selection} are worth reading together. The pruning
+works best exactly where selection is hard, and degenerates towards full
+enumeration where the requirement is so loose that almost any group would have
+satisfied it. That is a property of the problem and not a weakness of the
+algorithm: when the constraint is weak, the family of feasible sets really is
+that large.
+
+And a group assembled without regard to policy is usually not permitted to use
+the model it produced. Under the loosest request it is permitted 20\% of the
+time; under a request naming a purpose, never. A policy-aware group is permitted
+by construction.
+
+\paragraph{Why this result is stable.} Feasibility follows from combining
+declared terms. It never touches a model, a metric or a dataset, so no accuracy
+measurement can change it. This is why we report it as settled while making no
+claim about model quality.
+
+\paragraph{What this makes affordable.} The legal filter is exact and costs
+nothing: no training, and no data leaves any site. So it can run first, and
+whatever method is used afterwards to rank the remaining groups by expected model
+quality only has to consider groups that could actually be deployed. Training a
+group that may not use its own model is wasted computation. The order is not a
+convenience; it is the only order that makes sense. Ranking the permitted groups
+is out of scope here and we return to it in Section~\ref{sec:future}.
+
+%% ---------------------------------------------------------------------------
+\section{Models that carry their policy}
+
+A trained model is a derivative of every contributor's data, and the composed
+agreement states what may lawfully be done with it. Separate the two and the
+terms are lost the first time the file is copied.
+
+We export a bundle holding the weights and a manifest: the agreement, every
+contributor declaration it was composed from, and what remains owed.
+
+\paragraph{Verification recomputes rather than compares.} Checking a bundle does
+not compare a digest against itself. It recomposes the agreement from the
+declarations recorded in the manifest and confirms that the result matches what
+the manifest claims, then checks that the weights still hash to what was
+recorded. Widening a purpose therefore requires forging every contributor's
+declaration, not editing one line.
+
+\paragraph{Composition is recursive.} An agreement is itself a policy, so a
+bundle's agreement composes back in when the model is reused as an input.
+Capability can only narrow, which means a restricted model cannot be turned into
+an unrestricted one by training something else on it. This is the property that
+makes ``policy-carrying'' mean something beyond documentation.
+
+\paragraph{What it is not.} The manifest is not signed. A forger who rewrites the
+declarations and the agreement consistently produces a bundle that verifies.
+Detection covers accident and one-sided edits; closing the rest needs signatures
+over the digest and a key distribution story. We state this rather than leave it
+to be discovered.
+
+%% ---------------------------------------------------------------------------
+\section{Related work}
+
+\paragraph{Software licence composition} is the mature analogue. SPDX~\cite{spdx}, now an ISO
+standard, expresses licences and combines them with operators, and copyleft
+propagation is the same phenomenon we study: combining incompatible terms yields
+something that may not be distributed. Software bills of materials made this
+policy, and CycloneDX~\cite{cyclonedx} has extended the idea to models and datasets. These record
+what went in; they do not derive what may be done with what came out.
+
+\paragraph{Licences that bind derivatives.} The OpenRAIL family~\cite{openrail} attaches use
+restrictions that downstream users must pass on, and is deployed at scale. The
+mechanism is contractual and read by people. Nothing computes the result of
+combining two such licences with different restriction lists.
+
+\paragraph{Machine-readable data conditions.} GA4GH ADA-M~\cite{adam} and DUO~\cite{duo} exist to make
+data use conditions automatable, and are the closest prior work. Both are built
+around matching one request against one dataset. Neither has a notion of
+combining several datasets and asking what the joint rights are, which is the
+step our algebra provides.
+
+\paragraph{Usage control.} UCON~\cite{ucon} and the later usage control line study
+obligations that persist after access is granted, with decisions that are
+continuous rather than made once. That theory underpins our treatment of duties
+and of membership that changes over time, and is where ODRL is most used
+commercially, in industrial data spaces.
+
+\paragraph{AI opt-out vocabularies.} The draft ODRL AI profile reconciles several
+proposals, including the IETF AI preferences vocabulary~\cite{aipref}, the CAWG training
+and data mining assertion, and others, which it notes are divergent and fragmented.
+That work and ours are complementary: it standardises the actions that may be
+taken on an asset, and stops before both the composition of several owners'
+policies and the artefact that training produces.
+
+%% ---------------------------------------------------------------------------
+\section{Limitations}
+
+\paragraph{Bundles are not signed}, as described above.
+
+\paragraph{The similarity upper bound rests on 57 committees.} It is reported
+with a bootstrap interval, and the lower bound is a hard floor rather than an
+estimate.
+
+\paragraph{Model quality is not addressed.} We make no claim about which
+permitted group produces the better model. Our evaluation of capability never
+touches a metric, which is what makes it stable, but it also means this paper
+says nothing about accuracy.
+
+\paragraph{We assume contributors' data is of comparable quality.} The legal axis
+cannot see data quality. A contributor with permissive terms and poor data is
+invisible to the method described here, and would have to be excluded by some
+other means.
+
+\paragraph{Most of this is not specific to federated learning.} The algebra
+applies to any derivative built from several governed sources: a trusted research
+environment, a shared analysis platform, or a model fine-tuned on pooled records.
+Federated learning~\cite{fedavg} is where we implemented it, because there the policy check can
+run inside the system before training starts, not because the result depends on
+it. Centralising the data does not avoid the problem: the model is still a
+derivative of every source, and every source's terms still bind it.
+
+%% ---------------------------------------------------------------------------
+\section{Conclusion and future work}
+\label{sec:future}
+
+Conditions on data compose, and they compose in one direction. We gave an algebra
+for a fragment of ODRL, proved that capability is anti-monotone in the
+contributor set, grounded it in a real vocabulary, and measured what it costs: a
+group assembled without regard to policy is usually not permitted to use the
+model it produced. We also measured the one quantity earlier versions of this
+study had to assume, and report it as an interval.
+
+\paragraph{Ranking the permitted groups} is the obvious next step and the one we
+did not take. Several directions exist. Contribution measures such as Shapley
+values, influence functions or leave-one-out estimate what each contributor adds,
+at a cost that grows quickly with group size. Client selection methods from
+federated learning use cheap signals such as local loss. Short exploratory runs
+are another option: train every permitted group for a few rounds, rank them, and
+continue only with the best.
+
+One asymmetry makes this harder than it looks, and it is worth stating because it
+shapes what is possible. Permissions can be taken from a declaration, because
+claiming more restrictions than you have only shrinks what you may do: there is
+no incentive to overstate them. Data quality cannot, because the incentive runs
+the other way. Quality has to be measured, and measuring it is the expensive
+problem that the legal filter makes affordable rather than solves.
+
+\paragraph{Signing the manifest} is the other open item, and the one that would
+turn policy-carrying models from a description into a mechanism.
+
+\paragraph{Availability.} The implementation, the policy corpus, the committee
+metadata and every result table in this paper are available at \repourl. All
+figures and tables are produced from committed result files, so each number here
+can be traced to the run that produced it.
+
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{refs}
+
+\end{document}
