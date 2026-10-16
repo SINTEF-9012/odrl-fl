@@ -1,10 +1,11 @@
 %% References for the SAC 2027 submission.
 %%
-%% VERIFY BEFORE SUBMITTING. Entries marked "CHECK" below are ones where the
-%% author should confirm volume, page numbers or the exact venue. The titles,
+%% VERIFY BEFORE SUBMITTING. Entries marked CHECK are ones where the author
+%% should confirm the volume, page numbers, version or exact venue. Titles,
 %% authors and years are believed correct, but details of this kind are easy to
 %% get wrong and a reviewer will notice.
 
+%% --------------------------------------------------------------- ODRL itself
 @techreport{odrl-model,
   title        = {{ODRL} Information Model 2.2},
   author       = {Iannella, Renato and Villata, Serena},
@@ -37,6 +38,7 @@
   note         = {Accessed 15 October 2026}
 }
 
+%% ----------------------------------------------- conditions on a single asset
 %% CHECK: journal, volume and article number.
 @article{duo,
   title        = {The {Data} {Use} {Ontology} to streamline responsible access to
@@ -60,36 +62,47 @@
   publisher    = {Nature Publishing Group}
 }
 
-@inproceedings{apriori,
-  title        = {Fast Algorithms for Mining Association Rules in Large Databases},
-  author       = {Agrawal, Rakesh and Srikant, Ramakrishnan},
-  booktitle    = {Proceedings of the 20th International Conference on Very Large
-                  Data Bases (VLDB)},
-  pages        = {487--499},
-  year         = {1994}
+@article{datasheets,
+  title        = {Datasheets for Datasets},
+  author       = {Gebru, Timnit and Morgenstern, Jamie and Vecchione, Briana and
+                  Vaughan, Jennifer Wortman and Wallach, Hanna and
+                  Daum{\'e} III, Hal and Crawford, Kate},
+  journal      = {Communications of the ACM},
+  volume       = {64},
+  number       = {12},
+  pages        = {86--92},
+  year         = {2021}
 }
 
-@inproceedings{fedavg,
-  title        = {Communication-Efficient Learning of Deep Networks from
-                  Decentralized Data},
-  author       = {McMahan, Brendan and Moore, Eider and Ramage, Daniel and
-                  Hampson, Seth and Ag{\"u}era y Arcas, Blaise},
-  booktitle    = {Proceedings of the 20th International Conference on Artificial
-                  Intelligence and Statistics (AISTATS)},
-  pages        = {1273--1282},
-  year         = {2017}
+@inproceedings{modelcards,
+  title        = {Model Cards for Model Reporting},
+  author       = {Mitchell, Margaret and Wu, Simone and Zaldivar, Andrew and
+                  Barnes, Parker and Vasserman, Lucy and Hutchinson, Ben and
+                  Spitzer, Elena and Raji, Inioluwa Deborah and Gebru, Timnit},
+  booktitle    = {Proceedings of the Conference on Fairness, Accountability, and
+                  Transparency (FAT*)},
+  pages        = {220--229},
+  year         = {2019}
 }
 
-@article{ucon,
-  title        = {The {UCON}$_{ABC}$ Usage Control Model},
-  author       = {Park, Jaehong and Sandhu, Ravi},
-  journal      = {ACM Transactions on Information and System Security},
-  volume       = {7},
-  number       = {1},
-  pages        = {128--174},
-  year         = {2004}
+%% CHECK: venue and year; Croissant is recent and the citation form may differ.
+@misc{croissant,
+  title        = {Croissant: A Metadata Format for {ML}-Ready Datasets},
+  author       = {{MLCommons}},
+  year         = {2024},
+  url          = {https://mlcommons.org/croissant/}
 }
 
+%% CHECK: the DPV is now a W3C deliverable; confirm the current version and date.
+@techreport{dpv,
+  title        = {Data Privacy Vocabulary ({DPV})},
+  author       = {{W3C Data Privacy Vocabularies and Controls Community Group}},
+  institution  = {W3C},
+  year         = {2024},
+  url          = {https://w3id.org/dpv}
+}
+
+%% --------------------------------------------- licences that bind derivatives
 %% CHECK: the ISO number and year are believed correct but worth confirming.
 @misc{spdx,
   title        = {{ISO/IEC} 5962:2021 --- {Information} technology ---
@@ -110,8 +123,7 @@
   year         = {2022}
 }
 
-%% CHECK: this is the CycloneDX specification; confirm the current version and
-%% the correct way to cite it.
+%% CHECK: confirm the current CycloneDX version and the preferred citation.
 @misc{cyclonedx,
   title        = {{CycloneDX} {Bill} of {Materials} {Specification}},
   author       = {{OWASP Foundation}},
@@ -120,6 +132,46 @@
   note         = {Includes machine learning bill of materials (ML-BOM)}
 }
 
+%% CHECK: confirm the current specification version.
+@misc{c2pa,
+  title        = {{C2PA} Technical Specification},
+  author       = {{Coalition for Content Provenance and Authenticity}},
+  year         = {2024},
+  url          = {https://c2pa.org/specifications/}
+}
+
+%% CHECK: venue. This appeared as a preprint and later in a peer-reviewed venue.
+@misc{provenance,
+  title        = {The Data Provenance Initiative: A Large Scale Audit of Dataset
+                  Licensing and Attribution in {AI}},
+  author       = {Longpre, Shayne and Mahari, Robert and Chen, Anthony and
+                  Obeng-Marnu, Naana and Sileo, Damien and Brannon, William and
+                  others},
+  year         = {2023},
+  url          = {https://www.dataprovenance.org/}
+}
+
+%% ------------------------------------------------ usage control, data spaces
+@article{ucon,
+  title        = {The {UCON}$_{ABC}$ Usage Control Model},
+  author       = {Park, Jaehong and Sandhu, Ravi},
+  journal      = {ACM Transactions on Information and System Security},
+  volume       = {7},
+  number       = {1},
+  pages        = {128--174},
+  year         = {2004}
+}
+
+%% CHECK: the IDS reference architecture is versioned; confirm the edition.
+@techreport{ids,
+  title        = {{International} {Data} {Spaces} Reference Architecture Model},
+  author       = {{International Data Spaces Association}},
+  institution  = {IDSA},
+  year         = {2022},
+  url          = {https://internationaldataspaces.org/}
+}
+
+%% ---------------------------------------------------- AI opt-out, regulation
 %% CHECK: the IETF draft number and date change over time.
 @misc{aipref,
   title        = {A Vocabulary for Expressing {AI} Usage Preferences},
@@ -127,6 +179,67 @@
   year         = {2025},
   howpublished = {Internet-Draft},
   url          = {https://datatracker.ietf.org/doc/draft-ietf-aipref-vocab/}
+}
+
+%% CHECK: confirm the regulation number and the article referred to.
+@misc{aiact,
+  title        = {Regulation ({EU}) 2024/1689 laying down harmonised rules on
+                  artificial intelligence ({Artificial} {Intelligence} {Act})},
+  author       = {{European Parliament and Council}},
+  year         = {2024},
+  note         = {Article 53 concerns training data summaries for
+                  general-purpose models}
+}
+
+%% CHECK: confirm the directive number and the article referred to.
+@misc{dsm,
+  title        = {Directive ({EU}) 2019/790 on copyright and related rights in the
+                  {Digital} {Single} {Market}},
+  author       = {{European Parliament and Council}},
+  year         = {2019},
+  note         = {Article 4 concerns text and data mining and the reservation of
+                  rights}
+}
+
+%% -------------------------------------------------- methods cited for context
+@inproceedings{apriori,
+  title        = {Fast Algorithms for Mining Association Rules in Large Databases},
+  author       = {Agrawal, Rakesh and Srikant, Ramakrishnan},
+  booktitle    = {Proceedings of the 20th International Conference on Very Large
+                  Data Bases (VLDB)},
+  pages        = {487--499},
+  year         = {1994}
+}
+
+@inproceedings{fedavg,
+  title        = {Communication-Efficient Learning of Deep Networks from
+                  Decentralized Data},
+  author       = {McMahan, Brendan and Moore, Eider and Ramage, Daniel and
+                  Hampson, Seth and Ag{\"u}era y Arcas, Blaise},
+  booktitle    = {Proceedings of the 20th International Conference on Artificial
+                  Intelligence and Statistics (AISTATS)},
+  pages        = {1273--1282},
+  year         = {2017}
+}
+
+@inproceedings{datashapley,
+  title        = {Data {Shapley}: Equitable Valuation of Data for Machine Learning},
+  author       = {Ghorbani, Amirata and Zou, James},
+  booktitle    = {Proceedings of the 36th International Conference on Machine
+                  Learning (ICML)},
+  pages        = {2242--2251},
+  year         = {2019}
+}
+
+%% CHECK: page numbers.
+@inproceedings{oort,
+  title        = {Oort: Efficient Federated Learning via Guided Participant
+                  Selection},
+  author       = {Lai, Fan and Zhu, Xiangfeng and Madhyastha, Harsha V. and
+                  Chowdhury, Mosharaf},
+  booktitle    = {15th USENIX Symposium on Operating Systems Design and
+                  Implementation (OSDI)},
+  year         = {2021}
 }
 
 @misc{ega,
