@@ -27,9 +27,13 @@ involved: what may be done with the model that results.
 
 We give a composition algebra for ODRL policies and prove it is anti-monotone.
 Adding a contributor can never widen what the group may lawfully do with the
-model. We ground the algebra in the GA4GH Data Use Ontology, report that one
-widely used code cannot be expressed at all because its truth depends on the set
-being composed, and measure how far capability falls as a group grows. The rate
+model. The inputs are ordinary Semantic Web artefacts: policies are ODRL
+documents in JSON-LD whose terms are identified by IRIs, and the conditions
+themselves are classes from a published ontology, so composition is reasoning
+over a subsumption hierarchy rather than string matching. We ground the algebra
+in the GA4GH Data Use Ontology, report that one widely used code cannot be
+expressed at all because its truth depends on the set being composed, and measure
+how far capability falls as a group grows. The rate
 at which it falls depends on how similar the contributors' terms are, which
 earlier work had to assume; we measure it instead, from the data access
 committees of a public archive, and report it as an interval rather than a point.
@@ -66,8 +70,9 @@ Code and data: \repourl.
 \ccsdesc[300]{Information systems~Web services}
 \ccsdesc[300]{Computing methodologies~Artificial intelligence}
 
-\keywords{ODRL, usage control, data governance, policy composition,
-Data Use Ontology, federated learning}
+\keywords{ODRL, policy composition, semantic interoperability, vocabulary
+alignment, linked data, usage control, data governance, Data Use Ontology,
+federated learning}
 
 \maketitle
 
@@ -136,6 +141,18 @@ hypothetical: the new ODRL profile defines \emph{ai-training} for fine-tuning an
 \emph{ai-augment} for retrieval and grounding, which are exactly the two ways a
 foundation model is adapted with private data today.
 
+This is a problem for semantic technology, and we treat it as one. The policies
+are linked data: ODRL documents in JSON-LD, whose actions, operands and values
+are terms identified by IRIs and taken from published vocabularies. The
+conditions on the data are classes of an ontology with stable identifiers, and
+the purposes they name form a class hierarchy rather than a flat list. What we
+add is a semantics for combining such documents, together with a mapping between
+two independently designed vocabularies, ODRL and DUO, in which the fidelity of
+each correspondence is recorded. Section~\ref{sec:algebra} shows this is not a
+presentational choice: composition that compares vocabulary terms as strings,
+instead of reasoning over their subsumption hierarchy, reports conflicts that do
+not exist and would have changed the results we measure.
+
 \subsection{Scope and contributions}
 
 Choosing a group of contributors has two parts: which groups are
@@ -176,10 +193,16 @@ so that the gap is visible rather than asserted.
 
 \subsection{ODRL and the Data Use Ontology}
 
-ODRL expresses a policy as a set of rules. A \emph{permission} allows an action,
-a \emph{prohibition} forbids one, and a \emph{duty} is an obligation that must be
-met. Rules carry \emph{constraints}, which restrict when a rule applies, for
-example to a purpose, a region or a date.
+ODRL is a W3C Recommendation and part of the Semantic Web stack: a policy is an
+RDF graph, usually serialised as JSON-LD, in which every action, operand and
+value is a term with its own IRI. It expresses a policy as a set of rules. A
+\emph{permission} allows an action, a \emph{prohibition} forbids one, and a
+\emph{duty} is an obligation that must be met. Rules carry \emph{constraints},
+which restrict when a rule applies, for example to a purpose, a region or a date.
+
+We read policies with a parser for the JSON-LD serialisation, which has to handle
+the forms real documents take: terms appear bare, prefixed, or as full IRIs, and
+a single object may stand where a list is allowed.
 
 We use a fragment of ODRL with five actions relevant to building a model:
 \emph{use}, \emph{aggregate}, \emph{derive}, \emph{distribute} and
@@ -192,10 +215,14 @@ of \emph{ai-training}, which is a kind of \emph{data-mining}. Our fragment can
 take those actions directly, because the algebra treats actions through a
 subsumption relation rather than as flat labels.
 
-DUO~\cite{duo} is a controlled vocabulary for conditions on biomedical data, used
-by the European Genome-phenome Archive (EGA)~\cite{ega} and others. A dataset is
-annotated with codes such as HMB (health or medical or biomedical research only),
-NCU (no commercial use), or IRB (ethics approval required). We use DUO rather than
+DUO~\cite{duo} is an ontology of conditions on biomedical data, published with
+stable term identifiers and used by the European Genome-phenome Archive
+(EGA)~\cite{ega} and others. A dataset is annotated with codes such as
+DUO:0000006 (HMB, health or medical or biomedical research only), NCU (no
+commercial use), or IRB (ethics approval required). Relating these terms to ODRL
+is a vocabulary alignment problem, and one where the two vocabularies were
+designed for different purposes, so some correspondences are exact and others are
+interpretations. We record which is which. We use DUO rather than
 invented policies because the distribution of conditions in the wild is itself
 part of the result. Inventing a distribution would leave the main measurement
 unanswerable: a reader could ask why capability falls the way it does, and the
@@ -399,8 +426,9 @@ possible range.
 
 \subsection{Measuring similarity instead of assuming it}
 
-EGA policy records name the Data Access Committee that issues them. Grouping
-policies by committee makes similarity observable.
+EGA policy records name the Data Access Committee that issues them, and the
+1\,031 annotated policies come from 899 distinct committees. Grouping policies by
+committee therefore makes similarity observable.
 
 \paragraph{What the similarity number means.} We describe similarity with a
 single number $c$, between 0 and 1. It answers one question: if two institutions
@@ -468,8 +496,7 @@ point inside it, because choosing would mean replacing the assumption we set out
 to remove with a different one.
 
 \begin{table}[h]
-\caption{Similarity measured from EGA, over 1\,031 annotated policies and 899
-committees.}
+\caption{Similarity measured from EGA policy records.}
 \label{tab:cohesion}
 \begin{tabular}{lrl}
 \toprule
@@ -493,7 +520,7 @@ and with a corpus that assumes nothing: code sets drawn whole from the committee
 that published them, keeping whatever structure EGA actually has.
 
 \begin{table}[h]
-\caption{Capability lost at ten contributors. The assumed models span 7\%--77\%.}
+\caption{Capability lost at ten contributors.}
 \label{tab:erosion}
 \begin{tabular}{lrr}
 \toprule
@@ -545,11 +572,15 @@ is deliberately the strongest version of the baseline, because ranking
 contributors by the data they hold is standard practice, and a weaker baseline
 would make the comparison easier than it should be.
 
+\paragraph{Setup and results.} We run the search over a pool of 16 contributors,
+averaged over 5 generated corpora, under three requests of increasing strictness.
+Table~\ref{tab:selection} reports two quantities. \emph{Space removed} is the
+share of the $2^{16}-1$ candidate subsets that the pruning never had to examine.
+\emph{Blind usable} is how often the policy-blind group turns out to be permitted
+to use the model it produced.
+
 \begin{table}[h]
-\caption{Selection over a pool of 16, averaged over 5 corpora. The policy-blind
-group is the best $N$ contributors by data volume, with $N$ matched to the size
-of the policy-aware group. ``Blind usable'' is how often that group is permitted
-to use the model it produced.}
+\caption{Selection results by request.}
 \label{tab:selection}
 \begin{tabular}{lrr}
 \toprule
