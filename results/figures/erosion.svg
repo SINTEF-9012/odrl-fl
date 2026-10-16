@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 450" width="720" height="450" font-family="Helvetica, Arial, sans-serif">
+<rect width="720" height="450" fill="#ffffff"/>
+<text x="70" y="24" font-size="15" font-weight="600" fill="#1a1a1a">Permission erosion under composition</text>
+<text x="70" y="44" font-size="11.5" fill="#6b6b6b">Share of federations retaining any usable permission, by number of contributors</text>
+<line x1="70" y1="340.0" x2="700" y2="340.0" stroke="#e4e4e4" stroke-width="1"/>
+<text x="61" y="343.5" font-size="11" text-anchor="end" fill="#6b6b6b">0%</text>
+<line x1="70" y1="282.4" x2="700" y2="282.4" stroke="#e4e4e4" stroke-width="1"/>
+<text x="61" y="285.9" font-size="11" text-anchor="end" fill="#6b6b6b">20%</text>
+<line x1="70" y1="224.8" x2="700" y2="224.8" stroke="#e4e4e4" stroke-width="1"/>
+<text x="61" y="228.3" font-size="11" text-anchor="end" fill="#6b6b6b">40%</text>
+<line x1="70" y1="167.2" x2="700" y2="167.2" stroke="#e4e4e4" stroke-width="1"/>
+<text x="61" y="170.7" font-size="11" text-anchor="end" fill="#6b6b6b">60%</text>
+<line x1="70" y1="109.6" x2="700" y2="109.6" stroke="#e4e4e4" stroke-width="1"/>
+<text x="61" y="113.1" font-size="11" text-anchor="end" fill="#6b6b6b">80%</text>
+<line x1="70" y1="52.0" x2="700" y2="52.0" stroke="#e4e4e4" stroke-width="1"/>
+<text x="61" y="55.5" font-size="11" text-anchor="end" fill="#6b6b6b">100%</text>
+<text x="156.9" y="358" font-size="11" text-anchor="middle" fill="#6b6b6b">5</text>
+<text x="265.5" y="358" font-size="11" text-anchor="middle" fill="#6b6b6b">10</text>
+<text x="374.1" y="358" font-size="11" text-anchor="middle" fill="#6b6b6b">15</text>
+<text x="482.8" y="358" font-size="11" text-anchor="middle" fill="#6b6b6b">20</text>
+<text x="591.4" y="358" font-size="11" text-anchor="middle" fill="#6b6b6b">25</text>
+<text x="700.0" y="358" font-size="11" text-anchor="middle" fill="#6b6b6b">30</text>
+<line x1="70" y1="340" x2="700" y2="340" stroke="#1a1a1a" stroke-width="1.2"/>
+<text x="16" y="196.0" font-size="11.5" fill="#1a1a1a" text-anchor="middle" transform="rotate(-90 16 196.0)">retains any permission</text>
+<text x="385.0" y="380" font-size="11.5" text-anchor="middle" fill="#1a1a1a">contributors in the federation</text>
+<polygon points="70.0,52.0 91.7,52.0 113.4,52.0 135.2,52.0 156.9,52.0 178.6,52.0 222.1,52.0 265.5,52.0 374.1,52.0 482.8,52.0 700.0,52.0 700.0,52.0 482.8,52.0 374.1,52.0 265.5,52.0 222.1,52.0 178.6,52.0 156.9,52.0 135.2,52.0 113.4,52.0 91.7,52.0 70.0,52.0" fill="#0072B2" fill-opacity="0.13" stroke="none"/>
+<polygon points="70.0,52.0 91.7,52.0 113.4,53.0 135.2,52.0 156.9,52.0 178.6,54.9 222.1,60.6 265.5,63.5 374.1,89.4 482.8,113.4 700.0,178.7 700.0,212.3 482.8,142.2 374.1,114.4 265.5,79.8 222.1,75.0 178.6,65.4 156.9,58.7 135.2,52.0 113.4,61.6 91.7,54.9 70.0,52.0" fill="#D55E00" fill-opacity="0.13" stroke="none"/>
+<polygon points="70.0,52.0 91.7,52.0 113.4,56.8 135.2,53.9 156.9,59.7 178.6,75.0 222.1,90.4 265.5,113.4 374.1,162.4 482.8,212.3 700.0,299.7 700.0,319.8 482.8,244.0 374.1,195.0 265.5,141.3 222.1,114.4 178.6,95.2 156.9,74.1 135.2,62.6 113.4,67.4 91.7,58.7 70.0,52.0" fill="#009E73" fill-opacity="0.13" stroke="none"/>
+<polygon points="70.0,52.0 91.7,52.0 113.4,60.6 135.2,66.4 156.9,74.1 178.6,100.0 222.1,137.4 265.5,168.2 374.1,230.6 482.8,288.1 700.0,328.5 700.0,338.1 482.8,309.3 374.1,260.3 265.5,198.9 222.1,169.1 178.6,127.8 156.9,95.2 135.2,83.7 113.4,75.0 91.7,58.7 70.0,52.0" fill="#CC79A7" fill-opacity="0.13" stroke="none"/>
+<polygon points="70.0,52.0 91.7,54.9 113.4,73.1 135.2,83.7 156.9,105.8 178.6,136.5 222.1,180.6 265.5,195.0 374.1,271.8 482.8,311.2 700.0,337.1 700.0,340.0 482.8,327.5 374.1,295.8 265.5,226.7 222.1,212.3 178.6,168.2 156.9,132.6 135.2,105.8 113.4,93.3 91.7,65.4 70.0,52.0" fill="#E69F00" fill-opacity="0.13" stroke="none"/>
+<polyline points="70.0,52.0 91.7,52.0 113.4,52.0 135.2,52.0 156.9,52.0 178.6,52.0 222.1,52.0 265.5,52.0 374.1,52.0 482.8,52.0 700.0,52.0" fill="none" stroke="#0072B2" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="70.0" cy="52.0" r="2.6" fill="#0072B2"/>
+<circle cx="91.7" cy="52.0" r="2.6" fill="#0072B2"/>
+<circle cx="113.4" cy="52.0" r="2.6" fill="#0072B2"/>
+<circle cx="135.2" cy="52.0" r="2.6" fill="#0072B2"/>
+<circle cx="156.9" cy="52.0" r="2.6" fill="#0072B2"/>
+<circle cx="178.6" cy="52.0" r="2.6" fill="#0072B2"/>
+<circle cx="222.1" cy="52.0" r="2.6" fill="#0072B2"/>
+<circle cx="265.5" cy="52.0" r="2.6" fill="#0072B2"/>
+<circle cx="374.1" cy="52.0" r="2.6" fill="#0072B2"/>
+<circle cx="482.8" cy="52.0" r="2.6" fill="#0072B2"/>
+<circle cx="700.0" cy="52.0" r="2.6" fill="#0072B2"/>
+<polyline points="70.0,52.0 91.7,53.0 113.4,56.8 135.2,52.0 156.9,54.9 178.6,59.7 222.1,67.4 265.5,71.2 374.1,101.9 482.8,127.8 700.0,196.0" fill="none" stroke="#D55E00" stroke-width="2" stroke-dasharray="6 3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="70.0" cy="52.0" r="2.6" fill="#D55E00"/>
+<circle cx="91.7" cy="53.0" r="2.6" fill="#D55E00"/>
+<circle cx="113.4" cy="56.8" r="2.6" fill="#D55E00"/>
+<circle cx="135.2" cy="52.0" r="2.6" fill="#D55E00"/>
+<circle cx="156.9" cy="54.9" r="2.6" fill="#D55E00"/>
+<circle cx="178.6" cy="59.7" r="2.6" fill="#D55E00"/>
+<circle cx="222.1" cy="67.4" r="2.6" fill="#D55E00"/>
+<circle cx="265.5" cy="71.2" r="2.6" fill="#D55E00"/>
+<circle cx="374.1" cy="101.9" r="2.6" fill="#D55E00"/>
+<circle cx="482.8" cy="127.8" r="2.6" fill="#D55E00"/>
+<circle cx="700.0" cy="196.0" r="2.6" fill="#D55E00"/>
+<polyline points="70.0,52.0 91.7,54.9 113.4,61.6 135.2,57.8 156.9,66.4 178.6,84.6 222.1,101.9 265.5,127.8 374.1,178.7 482.8,228.6 700.0,310.2" fill="none" stroke="#009E73" stroke-width="2" stroke-dasharray="2 3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="70.0" cy="52.0" r="2.6" fill="#009E73"/>
+<circle cx="91.7" cy="54.9" r="2.6" fill="#009E73"/>
+<circle cx="113.4" cy="61.6" r="2.6" fill="#009E73"/>
+<circle cx="135.2" cy="57.8" r="2.6" fill="#009E73"/>
+<circle cx="156.9" cy="66.4" r="2.6" fill="#009E73"/>
+<circle cx="178.6" cy="84.6" r="2.6" fill="#009E73"/>
+<circle cx="222.1" cy="101.9" r="2.6" fill="#009E73"/>
+<circle cx="265.5" cy="127.8" r="2.6" fill="#009E73"/>
+<circle cx="374.1" cy="178.7" r="2.6" fill="#009E73"/>
+<circle cx="482.8" cy="228.6" r="2.6" fill="#009E73"/>
+<circle cx="700.0" cy="310.2" r="2.6" fill="#009E73"/>
+<polyline points="70.0,52.0 91.7,54.9 113.4,67.4 135.2,75.0 156.9,84.6 178.6,114.4 222.1,152.8 265.5,183.5 374.1,245.9 482.8,298.7 700.0,333.3" fill="none" stroke="#CC79A7" stroke-width="2" stroke-dasharray="8 3 2 3" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="70.0" cy="52.0" r="2.6" fill="#CC79A7"/>
+<circle cx="91.7" cy="54.9" r="2.6" fill="#CC79A7"/>
+<circle cx="113.4" cy="67.4" r="2.6" fill="#CC79A7"/>
+<circle cx="135.2" cy="75.0" r="2.6" fill="#CC79A7"/>
+<circle cx="156.9" cy="84.6" r="2.6" fill="#CC79A7"/>
+<circle cx="178.6" cy="114.4" r="2.6" fill="#CC79A7"/>
+<circle cx="222.1" cy="152.8" r="2.6" fill="#CC79A7"/>
+<circle cx="265.5" cy="183.5" r="2.6" fill="#CC79A7"/>
+<circle cx="374.1" cy="245.9" r="2.6" fill="#CC79A7"/>
+<circle cx="482.8" cy="298.7" r="2.6" fill="#CC79A7"/>
+<circle cx="700.0" cy="333.3" r="2.6" fill="#CC79A7"/>
+<polyline points="70.0,52.0 91.7,59.7 113.4,82.7 135.2,94.2 156.9,119.2 178.6,151.8 222.1,196.0 265.5,211.4 374.1,284.3 482.8,319.8 700.0,339.0" fill="none" stroke="#E69F00" stroke-width="2" stroke-dasharray="12 4" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="70.0" cy="52.0" r="2.6" fill="#E69F00"/>
+<circle cx="91.7" cy="59.7" r="2.6" fill="#E69F00"/>
+<circle cx="113.4" cy="82.7" r="2.6" fill="#E69F00"/>
+<circle cx="135.2" cy="94.2" r="2.6" fill="#E69F00"/>
+<circle cx="156.9" cy="119.2" r="2.6" fill="#E69F00"/>
+<circle cx="178.6" cy="151.8" r="2.6" fill="#E69F00"/>
+<circle cx="222.1" cy="196.0" r="2.6" fill="#E69F00"/>
+<circle cx="265.5" cy="211.4" r="2.6" fill="#E69F00"/>
+<circle cx="374.1" cy="284.3" r="2.6" fill="#E69F00"/>
+<circle cx="482.8" cy="319.8" r="2.6" fill="#E69F00"/>
+<circle cx="700.0" cy="339.0" r="2.6" fill="#E69F00"/>
+<text x="70" y="404" font-size="11" font-weight="600" fill="#1a1a1a">heterogeneity</text>
+<line x1="177.0" y1="400" x2="197.0" y2="400" stroke="#0072B2" stroke-width="2.4"/>
+<text x="203.0" y="404" font-size="11" fill="#1a1a1a">h = 0</text>
+<line x1="242.0" y1="400" x2="262.0" y2="400" stroke="#D55E00" stroke-width="2.4" stroke-dasharray="6 3"/>
+<text x="268.0" y="404" font-size="11" fill="#1a1a1a">h = 0.25</text>
+<line x1="326.8" y1="400" x2="346.8" y2="400" stroke="#009E73" stroke-width="2.4" stroke-dasharray="2 3"/>
+<text x="352.8" y="404" font-size="11" fill="#1a1a1a">h = 0.5</text>
+<line x1="405.0" y1="400" x2="425.0" y2="400" stroke="#CC79A7" stroke-width="2.4" stroke-dasharray="8 3 2 3"/>
+<text x="431.0" y="404" font-size="11" fill="#1a1a1a">h = 0.75</text>
+<line x1="489.8" y1="400" x2="509.8" y2="400" stroke="#E69F00" stroke-width="2.4" stroke-dasharray="12 4"/>
+<text x="515.8" y="404" font-size="11" fill="#1a1a1a">h = 1</text>
+<text x="70" y="440" font-size="10.5" fill="#6b6b6b">Bands are 95% bootstrap intervals over 300 draws. h = 0 is an identical-policy control.</text>
+</svg>

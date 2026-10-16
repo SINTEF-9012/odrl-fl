@@ -1,0 +1,319 @@
+"""Selection to trained model, end to end.
+
+The first point in the project where a model is trained on a consortium chosen
+by policy. Everything before this measured the decision; this runs it and then
+trains.
+
+It simulates the declaration round rather than standing up a federation, so it
+needs no SuperLink and no Ray: each contributor's announcement is built exactly
+as `client_app.declare` would build it, and handed to exactly the `admit` the
+server calls. Only the transport is missing.
+
+The comparison is against the policy-blind consortium of the same size -- the
+standard practice of picking whoever has the most useful data. It often trains
+the better model, and is usually not permitted to use it.
+
+A member also withdraws partway through, which is where the licence question
+gets sharp: their departure widens what the *remaining* members would permit,
+while their data stays in the weights. Seed 0 has no such member; the second
+invocation below picks one that does.
+
+    python experiments/policy_aware_demo.py
+    python experiments/policy_aware_demo.py --seed 6 --withdraw 5
+    python experiments/policy_aware_demo.py --purpose research --nodes 12
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from datetime import UTC, datetime
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from odrl_fl.bundle import (
+    ContributorRecord,
+    as_contributor_policy,
+    build_manifest,
+    export,
+    verify,
+)
+from odrl_fl.corpus import generate_corpus
+from odrl_fl.duties import Ledger, UnmetPrecondition, check_gates
+from odrl_fl.fedavg import run_fedavg
+from odrl_fl.lifecycle import (
+    Membership,
+    governing_agreement,
+    reevaluate,
+    widened_purposes,
+    withdraw,
+)
+from odrl_fl.odrl import Action, LeftOperand, capability, compose
+from odrl_fl.selection import is_feasible, policy_blind_selection, requirement
+from odrl_fl.server_app import parse_evidence
+from odrl_fl.strategy import (
+    Announcement,
+    NoFeasibleConsortium,
+    admit,
+    declaration,
+    declared_utility,
+    parse_announcement,
+)
+from odrl_fl.task import N_CLASSES, load_partition
+
+#: Spread of contributor data volumes. Must match what `run_fedavg` trains
+#: on, or nodes would declare volumes they do not hold.
+SIZE_VARIATION = 1.2
+
+
+def announce(n_nodes: int, alpha: float, seed: int) -> list[Announcement]:
+    """Build what each node would send, and read it back as the server would.
+
+    Deliberately round-tripped through the wire format rather than constructed
+    directly: if serialisation ever loses something, this demo should break
+    alongside the real path instead of quietly diverging from it.
+    """
+    corpus = generate_corpus(n_nodes, seed=seed)
+    announcements = []
+    for contributor in corpus:
+        partition = load_partition(
+            contributor.index,
+            n_nodes,
+            alpha=alpha,
+            seed=seed,
+            size_variation=SIZE_VARIATION,
+        )
+        record = declaration(
+            contributor.policy,
+            n_train=partition.n_train,
+            label_counts=partition.label_counts,
+            codes=contributor.codes,
+        )
+        announcements.append(parse_announcement(contributor.index, record))
+    return announcements
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Policy-aware federation, end to end")
+    parser.add_argument("--nodes", type=int, default=10)
+    parser.add_argument("--rounds", type=int, default=5)
+    parser.add_argument("--alpha", type=float, default=1.0)
+    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--require", nargs="+", default=["use", "aggregate"])
+    parser.add_argument("--bundle-dir", default="artifacts/demo-bundle")
+    parser.add_argument(
+        "--withdraw", type=int, default=None,
+        help="Node that withdraws consent partway through. Defaults to the "
+             "last admitted member.",
+    )
+    parser.add_argument("--withdraw-round", type=int, default=3)
+    parser.add_argument(
+        "--evidence",
+        default="obtainConsent=IRB-2026-0142",
+        help="Evidence that preconditions were discharged, as action=reference "
+             "pairs. Pass an empty string to watch the run refuse to start.",
+    )
+    parser.add_argument(
+        "--purpose",
+        default="ds-cancer",
+        help="Purpose the federation needs the data for. Empty means actions "
+             "only, which nearly every contributor grants.",
+    )
+    args = parser.parse_args(argv)
+
+    request = requirement(
+        *(Action(a) for a in args.require), purpose=args.purpose or None
+    )
+    utility = declared_utility(N_CLASSES)
+
+    print("Policy-aware federation")
+    print(f"  {args.nodes} nodes declaring, seed {args.seed}")
+    print(f"  requirement: {', '.join(args.require)}"
+          + (f" for purpose={args.purpose}" if args.purpose else ""))
+
+    announcements = announce(args.nodes, args.alpha, args.seed)
+    print(f"\n  declaration round: {len(announcements)} nodes answered")
+    for a in announcements:
+        print(f"    node {a.node_id:>2}  {a.n_train:>4} samples  "
+              f"{len(a.classes)}/{N_CLASSES} classes  {', '.join(a.codes) or '-'}")
+
+    try:
+        admission = admit(announcements, request, utility)
+    except NoFeasibleConsortium as exc:
+        print(f"\n  ABORTED: {exc}")
+        print("\n  No fallback is attempted. Training on everyone would produce")
+        print("  precisely the model nobody is permitted to use.")
+        return 1
+
+    print(f"\n  admitted {len(admission.admitted)} of {len(announcements)}: "
+          f"{list(admission.admitted)}")
+    for node_id, reason in sorted(admission.excluded.items()):
+        print(f"    excluded node {node_id} -- {reason}")
+    print(f"  the federation may: "
+          f"{', '.join(sorted(a.value for a in admission.capability))}")
+
+    # What the agreement demands, sorted by what a system can do about it.
+    plan = admission.plan
+    print("\n  duties")
+    if plan.gates:
+        needed = sorted(d.action.value for d in plan.gates)
+        print(f"    GATE      {', '.join(needed)} -- must be evidenced before starting")
+    if plan.directives:
+        for d in plan.directives:
+            budget = f" (eps<={d.epsilon})" if d.epsilon else ""
+            print(f"    DISPATCH  {d.action}{budget} -- sent to clients each round")
+    for o in plan.outstanding:
+        owed = f"all {len(o.owed_by)} members" if len(o.owed_by) > 2 else (
+            ", ".join(o.owed_by) or "the consortium"
+        )
+        print(f"    RECORD    {o.action} -- OUTSTANDING, owed by {owed}")
+    if plan.is_trivial:
+        print("    (none)")
+
+    # The gate. A precondition cannot be discharged by the run that depends on
+    # it, so without evidence the only faithful move is to refuse to start.
+    try:
+        cleared = check_gates(plan.gates, parse_evidence(args.evidence))
+    except UnmetPrecondition as exc:
+        print(f"\n  REFUSED TO START: {exc}")
+        return 2
+    for action, reference in sorted(cleared.items()):
+        print(f"  cleared {action}, evidence {reference}")
+
+    # The policy-blind comparison: same budget, chosen purely for data.
+    blind = policy_blind_selection(announcements, utility, len(admission.admitted))
+    blind_nodes = [announcements[i].node_id for i in blind]
+    blind_ok = is_feasible([announcements[i] for i in blind], request)
+
+    print(f"\n  a policy-blind consortium of the same size would pick {blind_nodes}")
+    print(f"  is it permitted to use its own model? {'yes' if blind_ok else 'NO'}")
+
+    print(f"\n  training {args.rounds} rounds on the admitted consortium ...")
+    history = run_fedavg(
+        contributors=admission.admitted,
+        n_clients=args.nodes,
+        rounds=args.rounds,
+        alpha=args.alpha,
+        seed=args.seed,
+        size_variation=SIZE_VARIATION,
+    )
+    print(f"  accuracy on the shared held-out test set: "
+          f"{history.final_accuracy:.3f}")
+
+    blind_history = run_fedavg(
+        contributors=blind_nodes,
+        n_clients=args.nodes,
+        rounds=args.rounds,
+        alpha=args.alpha,
+        seed=args.seed,
+        size_variation=SIZE_VARIATION,
+    )
+    print(f"\n  the policy-blind model reaches {blind_history.final_accuracy:.3f}, "
+          f"and is{'' if blind_ok else ' not'} deployable")
+
+    if not blind_ok:
+        print(f"\n  Deployable accuracy: {history.final_accuracy:.3f} against 0.000.")
+        print("  Whether the policy-blind model scores higher varies by seed and is")
+        print("  beside the point -- an undeployable model has no accuracy worth")
+        print("  quoting. What selection buys is the right to use the result.")
+
+    # Consent is not settled once. Somebody withdraws partway through the run.
+    by_node = {a.node_id: a for a in announcements}
+    policies = {n: by_node[n].policy for n in admission.admitted}
+    membership = Membership.starting(admission.admitted)
+    ledger = Ledger(outstanding=plan.outstanding, gates_cleared=cleared)
+
+    leaver = args.withdraw if args.withdraw is not None else admission.admitted[-1]
+    if leaver in policies:
+        print(f"\n  at round {args.withdraw_round}, node {leaver} withdraws consent")
+        outcome = reevaluate(
+            membership,
+            {**policies, leaver: withdraw(policies[leaver])},
+            server_round=args.withdraw_round,
+            at=datetime.now(UTC).date(),
+            request=request,
+        )
+        membership = outcome.membership
+        for record in outcome.departed:
+            ledger.depart(
+                record.server_round, record.node_id,
+                record.reason.value, record.detail,
+            )
+        print(f"    still training : {list(membership.active)}")
+        print(f"    data in model  : {list(membership.contributed)}  <- unchanged")
+
+        governing, extra = widened_purposes(policies, membership)
+        print(f"\n    the model may be used for : {', '.join(sorted(governing)) or 'nothing'}")
+        if extra:
+            print("    the remaining members alone would allow, additionally:")
+            print(f"      {', '.join(sorted(extra))}")
+            print("    Recomposing over who is left would claim those, by correct")
+            print(f"    reasoning from a premise that just lapsed: node {leaver}'s data")
+            print("    is still in the weights, and it has withdrawn. The licence")
+            print("    follows the contribution set, so the model claims none of it.")
+        else:
+            print("    Nothing widens at this seed -- the departing member was not")
+            print("    the binding constraint. The guarantee is one-directional.")
+
+    # Ship the model with the terms it was built under, and check the pairing.
+    # Composed over everyone whose data is in the weights, not over who is left.
+    manifest = build_manifest(
+        governing_agreement(policies, membership),
+        [
+            ContributorRecord(
+                node_id=n,
+                policy=by_node[n].policy,
+                codes=by_node[n].codes,
+                n_train=by_node[n].n_train,
+            )
+            for n in membership.contributed
+        ],
+        request=request,
+        excluded=admission.excluded,
+        ledger=ledger,
+        metrics={"accuracy": history.final_accuracy},
+    )
+    directory = export(args.bundle_dir, manifest, history.state_dict)
+    print(f"\n  policy-carrying model written to {directory}")
+    for line in verify(directory).describe():
+        print(f"    {line}")
+    print("  verified: the recorded declarations recompose to these terms")
+
+    # The recursion. Reusing this model in another consortium composes its
+    # terms with the newcomers', and capability can only narrow -- a restricted
+    # model cannot be laundered into an unrestricted one.
+    newcomer = generate_corpus(args.nodes + 1, seed=args.seed + 99)[-1]
+    reused = compose([as_contributor_policy(manifest), newcomer.policy]).agreement
+
+    def purposes_of(policy) -> str:
+        values: set[str] = set()
+        for permission in policy.permissions:
+            for constraint in permission.constraints:
+                if constraint.left_operand is LeftOperand.PURPOSE:
+                    values |= set(constraint.right_operand)
+        return ", ".join(sorted(values)) or "unconstrained"
+
+    now_caps = sorted(a.value for a in manifest.capability)
+    then_caps = sorted(a.value for a in capability(reused))
+    now_purposes, then_purposes = purposes_of(manifest.agreement), purposes_of(reused)
+
+    print(f"\n  if this model were reused alongside {newcomer.codes[0] if newcomer.codes else 'a newcomer'}:")
+    print(f"    {'':13}{'may':<40}for")
+    print(f"    now      {', '.join(now_caps) or '--':<40}{now_purposes}")
+    print(f"    then     {', '.join(then_caps) or '--':<40}{then_purposes}")
+
+    if (now_caps, now_purposes) == (then_caps, then_purposes):
+        print("    This newcomer's terms happen to be compatible, so nothing")
+        print("    narrows here. The guarantee is one-directional, not that every")
+        print("    reuse costs something: composing can only ever remove.")
+    else:
+        print("    Reuse composed this model's terms with the newcomer's and lost")
+        print("    ground, which is the only direction available.")
+    print("    Either way a restricted model cannot be laundered into an")
+    print("    unrestricted one by training something else on it.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
