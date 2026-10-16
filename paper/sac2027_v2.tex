@@ -155,28 +155,36 @@ measure is supplied by the application, and we make no claim as to which
 permitted group trains best. As Section~\ref{sec:poc} shows, solving the first
 part is in fact what makes the second part affordable.
 
-Against this background, this paper makes the following contributions:
+Against this background, this paper makes two contributions.
 
 \begin{enumerate}
-\item First, we propose a composition algebra for a fragment of ODRL, together
-with a proof that capability is anti-monotone in the contributor set, so that
-admitting a contributor can only narrow what the group may do.
-\item Second, we introduce a measure of how similar a group's conditions are,
-which separates genuine shared practice from agreement arising by coincidence,
-and a selection procedure that exploits anti-monotonicity to prune a search over
-candidate subsets.
-\item Third, we describe a model bundle that carries its composed agreement, in
-which verification recomputes the agreement from the recorded declarations rather
-than comparing a hash, and in which composition is recursive, so that reuse of
-the model can only narrow the rights attached to it.
-\item Fourth, we provide a proof of concept based on GA4GH DUO as published by
-the European Genome-phenome Archive, covering all 28 codes observed there,
-including one that cannot be expressed at all, and we explain the reason for
-this.
-\item Fifth, we quantify the cost of ignoring policy, showing that a group
-assembled the way groups are assembled today is permitted to use its own model
-only 20\% of the time, which means that most of the computation spent on training
-it is wasted.
+\item First, we propose an approach to composing usage policies which is
+generic, in that it depends neither on a particular application domain nor on a
+particular vocabulary. It consists of the following three elements:
+  \begin{enumerate}
+  \item a composition algebra for a fragment of ODRL, together with a proof that
+  capability is anti-monotone in the contributor set, so that admitting a
+  contributor can only narrow what the group may do;
+  \item a measure of how similar a group's conditions are, which separates
+  genuine shared practice from agreement arising by coincidence, together with a
+  selection procedure that exploits anti-monotonicity in order to prune a search
+  over candidate subsets; and
+  \item a model bundle that carries its composed agreement, in which
+  verification recomputes the agreement from the recorded declarations rather
+  than comparing a hash, and in which composition is recursive, so that reuse of
+  the model can only narrow the rights attached to it.
+  \end{enumerate}
+\item Second, we provide a proof of concept in which the approach is applied to
+real data use conditions published by a public archive. It contributes:
+  \begin{enumerate}
+  \item a mapping of GA4GH DUO as published by the European Genome-phenome
+  Archive, covering all 28 codes observed there, including one that cannot be
+  expressed at all, together with an explanation of why this is so; and
+  \item a quantification of the cost of ignoring policy, showing that a group
+  assembled the way groups are assembled today is permitted to use its own model
+  only 20\% of the time, which means that most of the computation spent on
+  training it is wasted.
+  \end{enumerate}
 \end{enumerate}
 
 The rest of this paper is organised as follows. Section~\ref{sec:related}
@@ -533,24 +541,31 @@ classify all 28 codes observed in the archive, as summarised in
 Table~\ref{tab:duo}. Three of these are deprecated, having been retired from the
 ontology while remaining present in live annotations, which means that any tool
 encountering real governance metadata has to decide what to do with obsolete
-terms. Every mapping furthermore carries a fidelity marker, either \emph{exact}
-or \emph{interpretive}, so that the places where the two vocabularies fail to
-align cleanly remain visible to the reader.
+terms. Every mapping furthermore carries a fidelity
+marker, either \emph{exact} or \emph{interpretive}, and the distribution of
+these markers is itself informative: all of the restrictions map exactly, whereas
+the externally adjudicated codes and the duties are without exception
+interpretations, which is where the two vocabularies were designed for different
+ends. The complete mapping, code by code, is available in the repository.
 
 \begin{table}[h]
 \caption{Classification of the 28 DUO codes observed in EGA.}
 \label{tab:duo}
-\begin{tabular}{llr}
+\begin{tabular}{llrrrr}
 \toprule
-Class & Meaning & $n$ \\
+ & & & \multicolumn{3}{c}{Fidelity} \\
+\cmidrule(l){4-6}
+Class & Meaning & $n$ & exact & interp. & n/a \\
 \midrule
-permission & sets the purpose the data may serve & 8 \\
-restriction & a constraint or prohibition & 8 \\
-externally adjudicated & an authority decides out of band & 4 \\
-deprecated & obsolete, still present in annotations & 3 \\
-duty & an obligation rather than a restriction & 2 \\
-structural & an ontology category, not a condition & 2 \\
-out of fragment & cannot be expressed & 1 \\
+permission & sets a purpose & 8 & 7 & 1 & --- \\
+restriction & constrains or forbids & 8 & 8 & --- & --- \\
+externally adjudicated & decided out of band & 4 & --- & 4 & --- \\
+deprecated & obsolete, still in use & 3 & --- & 2 & 1 \\
+duty & an obligation & 2 & --- & 2 & --- \\
+structural & ontology category & 2 & --- & --- & 2 \\
+out of fragment & inexpressible & 1 & --- & --- & 1 \\
+\midrule
+total & & 28 & 15 & 9 & 4 \\
 \bottomrule
 \end{tabular}
 \end{table}
