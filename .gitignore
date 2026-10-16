@@ -30,3 +30,8 @@ artifacts/
 .ruff_cache/
 .hypothesis/
 .mypy_cache/
+
+# PDFs in paper/ are not committed. The published versions of our own papers
+# belong to their publishers to distribute, the personal documents are not
+# repository material, and a compiled sac2027.pdf is build output.
+paper/*.pdf
