@@ -402,10 +402,41 @@ possible range.
 EGA policy records name the Data Access Committee that issues them. Grouping
 policies by committee makes similarity observable.
 
-We model similarity as a single parameter, the probability $c$ that a contributor
-adopts a shared set of conditions rather than drawing independently. For two
-contributors, writing $p$ for the chance that two independent draws coincide, the
-probability that their code sets are identical is
+\paragraph{What the similarity number means.} We describe similarity with a
+single number $c$, between 0 and 1. It answers one question: if two institutions
+belong to the same group, how likely are they to have written the same
+conditions? At $c=0$ every institution decides on its own, and two of them match
+only by accident. At $c=1$ every institution follows the same template, and any
+two of them always match. Real groups lie between.
+
+This number is what decides how quickly capability falls. If all contributors
+have identical conditions, combining them costs nothing, because intersecting a
+set with itself returns the same set. If their conditions differ, every
+additional contributor removes something. So $c$, and not the number of
+contributors, is what governs the result.
+
+\paragraph{Why it cannot simply be counted.} We cannot observe $c$ directly. We
+can only observe how often two policies happen to be identical, and that is not
+the same quantity, because two institutions can agree by coincidence: some
+condition sets are common, so two institutions deciding independently will
+sometimes write the same thing. The observed rate therefore mixes two causes,
+
+\[
+\text{policies match} \;=\;
+\underbrace{\text{both followed a shared template}}_{\text{similarity}}
+\;+\;
+\underbrace{\text{both decided alone and agreed}}_{\text{coincidence}} .
+\]
+
+The model below separates them. Write $p$ for the coincidence rate, that is, how
+often two independent draws from the observed distribution of code sets produce
+the same set. For the EGA distribution $p = 0.0131$, so two unrelated
+institutions agree about 1.3\% of the time for no reason other than chance. Any
+agreement above that rate is evidence of shared practice, and the model converts
+the excess into a value of $c$.
+
+\paragraph{The model.} For two contributors, writing $p$ for the chance that two
+independent draws coincide, the probability that their code sets are identical is
 \[
 \mathrm{agreement} = c^2 + (1-c)^2 p + 2c(1-c)w,
 \]
@@ -418,11 +449,23 @@ c = \sqrt{\frac{\mathrm{agreement}-p}{1-p}}.
 \]
 
 Measuring agreement in EGA then gives $c$, as shown in
-Table~\ref{tab:cohesion}. We report an interval rather than a point, because a
-committee is not a consortium. A committee is one institution
-issuing several policies, which is the most similar grouping available, so
-agreement within a committee bounds $c$ from above. Two unrelated committees
-bound it from below.
+Table~\ref{tab:cohesion}. The two rows read very differently. Policies issued by
+two \emph{different} committees are identical 1.18\% of the time, which is
+slightly below the 1.31\% that chance alone would produce, so there is no
+evidence of shared practice between institutions and $c$ is zero. Policies issued
+by the \emph{same} committee are identical 47.4\% of the time, far above chance,
+giving $c = 0.683$.
+
+\paragraph{Why an interval and not a single number.} A committee is not a
+consortium. It is a single institution issuing several policies, usually written
+by the same people under the same internal rules, so it is the most similar
+grouping that can be found anywhere in the archive. A real consortium is made of
+\emph{different} institutions and must therefore be less similar than that. The
+same-committee figure is consequently an upper bound on $c$, and the
+across-committee figure a lower bound. The truth for any particular consortium
+lies somewhere between, and we report the whole interval rather than choose a
+point inside it, because choosing would mean replacing the assumption we set out
+to remove with a different one.
 
 \begin{table}[h]
 \caption{Similarity measured from EGA, over 1\,031 annotated policies and 899
@@ -493,9 +536,20 @@ This is exactly the candidate generation of the Apriori algorithm~\cite{apriori}
 and the pruning is sound because the property it rests on is exact rather than
 estimated.
 
+\paragraph{The baseline.} The comparison needs a group chosen the way one would
+be chosen today. Our policy-blind baseline is therefore not a random group:
+contributors are ranked by how much data they bring, and the best $N$ are taken,
+with $N$ set to the size the policy-aware search returned. Both groups then have
+the same number of members and differ only in whether policy was consulted. This
+is deliberately the strongest version of the baseline, because ranking
+contributors by the data they hold is standard practice, and a weaker baseline
+would make the comparison easier than it should be.
+
 \begin{table}[h]
-\caption{Selection over a pool of 16, averaged over 5 corpora. ``Blind usable''
-is how often a group chosen without regard to policy may use its own model.}
+\caption{Selection over a pool of 16, averaged over 5 corpora. The policy-blind
+group is the best $N$ contributors by data volume, with $N$ matched to the size
+of the policy-aware group. ``Blind usable'' is how often that group is permitted
+to use the model it produced.}
 \label{tab:selection}
 \begin{tabular}{lrr}
 \toprule
@@ -529,8 +583,14 @@ So it can run first, and whatever method is used afterwards to rank the remainin
 groups by expected model quality only has to consider groups that could actually
 be deployed. Training a group that may not use its own model is wasted
 computation. The order is not a convenience; it is the only order that makes
-sense. Ranking the permitted groups is out of scope here and we return to it in
-Section~\ref{sec:future}.
+sense.
+
+We do not rank the permitted groups. That is not the same as claiming they are
+equally good, and the distinction matters: it means only that choosing among them
+needs a measure of expected model quality, which this paper does not provide and
+does not assume. What the filter guarantees is that whatever measure is used
+later will be applied to groups that could lawfully be deployed. We return to
+this in Section~\ref{sec:future}.
 
 %% ===========================================================================
 \section{Models that carry their policy}
