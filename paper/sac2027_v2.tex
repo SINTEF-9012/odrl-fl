@@ -536,6 +536,19 @@ the result. Had we invented a distribution, the main measurement would have been
 unanswerable, in that a reader could reasonably ask why capability falls as it
 does, and the only honest answer would be that we chose it.
 
+It is worth being precise about what these records correspond to in our model,
+since the archive distinguishes three things. A dataset is a collection of
+records, a policy states the conditions under which such records may be used and
+governs one or more datasets, and a Data Access Committee issues policies on
+behalf of an institution. A contributor, in the sense used throughout this paper,
+is an institution that declares a single policy, so that the closest object in
+the archive is a policy together with the committee that issued it, rather than a
+dataset. The evaluation pools reported in the remainder of this section are
+accordingly not subsets of the archive itself. They are drawn from the
+distribution of condition sets that these records exhibit, which is why different
+random seeds yield different pools, and it is this distribution rather than any
+individual record that our measurements depend upon.
+
 Mapping DUO into the ODRL fragment requires every code to be classified, and we
 classify all 28 codes observed in the archive, as summarised in
 Table~\ref{tab:duo}. Three of these are deprecated, having been retired from the
@@ -624,9 +637,14 @@ report the interval rather than selecting a point within it.
 We draw contributor policies from the observed distribution and compose subsets of
 increasing size, measuring the proportion of groups that retain any usable
 permission. Table~\ref{tab:erosion} reports this at both ends of the measured
-interval, and additionally for a corpus that assumes nothing, in which condition
-sets are drawn whole from the committees that published them so as to preserve
-whatever structure the archive actually exhibits.
+interval, and additionally for a corpus that assumes nothing at all. The
+distinction between these lies in how the condition sets are drawn. For the two
+bounds, a set is drawn from the frequency-weighted distribution of the
+combinations observed in the archive, with the similarity parameter fixed at the
+respective end of the interval. For the third row, by contrast, a committee is
+drawn first and one of its policies second, so that whatever structure the
+archive exhibits is preserved exactly and no value of the similarity parameter
+needs to be assumed.
 
 \begin{table}[h]
 \caption{Capability lost at ten contributors.}
@@ -670,6 +688,12 @@ than it ought to be.
 
 We run the search of Section~\ref{sec:selection} over a pool of 16 contributors,
 averaged over 5 generated corpora, under three requests of increasing strictness.
+The size of the pool is fixed by the verification rather than chosen for
+convenience, since the soundness of the pruning is established by comparing its
+output against a full enumeration of all $2^{16}-1$ subsets, and the proportion
+of the space removed is measured against the same quantity. Sixteen is
+additionally the order of magnitude of a real consortium, which typically
+comprises ten or twenty institutions rather than an entire archive.
 Table~\ref{tab:selection} reports two quantities, of which \emph{space removed}
 is the proportion of the $2^{16}-1$ candidate subsets that the pruning never had
 to examine, while \emph{blind usable} is the frequency with which the
