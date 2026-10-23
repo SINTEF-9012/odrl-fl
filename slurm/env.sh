@@ -1,117 +1,151 @@
-# Cluster settings. This is the only file you should need to edit.
+# Cluster settings and shared helpers. This is the only file you should need
+# to edit.
 #
-# Sourced by every script in this directory. Nothing here is guessed from the
-# environment, because a wrong guess inside a queued job fails hours later
-# instead of immediately.
+# The conventions here follow a campaign that already runs on this server --
+# see `inTrust/benchmark/slurm/run_campaign.job`. The first version of these
+# scripts was written against generic Slurm documentation instead, and every
+# job died on its third line.
 
 # --- Slurm -----------------------------------------------------------------
-# Leave a value empty and the corresponding #SBATCH line is omitted, which is
-# the right thing on a cluster with a single default partition. Run
-# `sinfo -s` to list partitions and `sacctmgr show assoc user=$USER` for
-# accounts.
-export ODRL_PARTITION=""
-export ODRL_ACCOUNT=""
+# `sinfo -s` lists partitions; `sacctmgr show assoc user=$USER` lists accounts.
+# Leave a value empty and the corresponding #SBATCH line is simply absent.
+export ODRL_PARTITION="${ODRL_PARTITION:-sintef}"
+export ODRL_ACCOUNT="${ODRL_ACCOUNT:-}"
 
-# The cluster caps jobs at 24 hours. Half an hour of headroom, so a job that
-# overruns is still killed by Slurm after writing most of its output rather
-# than at an arbitrary point.
-export ODRL_TIME="23:30:00"
+# The cluster caps jobs at 24 hours.
+export ODRL_TIME="${ODRL_TIME:-00-23:30:00}"
+
+# Logs go outside the repository, which is where the working campaign on this
+# machine puts them and which means a fresh clone needs no directory created
+# for it. Slurm does not create the parent of an --output path: a job whose log
+# directory is missing fails before running a line, and leaves no log to say so.
+export ODRL_LOGS_DIR="${ODRL_LOGS_DIR:-$HOME/logs/slurm}"
 
 # --- The Python environment ------------------------------------------------
-# Either a venv or a conda environment works, and `odrl_activate` picks
-# whichever is present. A venv is tried first, because if you already have one
-# that runs the tests then it is the one that should run the jobs.
+# A user-owned environment, as the cluster requires: only administrators can
+# install into the global Anaconda.
 #
-# Set ODRL_VENV to a path to force a venv; leave it empty and the usual
-# locations inside the checkout are tried.
-export ODRL_VENV="${ODRL_VENV:-}"
+# NOTE: the conda environment named `venv` on this machine belongs to another
+# project and has neither torch nor flwr. This campaign needs its own, which
+# `01_setup_env.sh` builds.
+export ODRL_CONDA_ENV="${ODRL_CONDA_ENV:-odrl-fl}"
 
-# A user-owned conda environment in $HOME, as the cluster documentation
-# requires: only administrators can install into the global Anaconda. Used only
-# if no venv is found.
-export ODRL_CONDA_ENV="odrl-fl"
+# Set ODRL_VENV to a path to force a plain virtualenv instead.
+export ODRL_VENV="${ODRL_VENV:-}"
 
 # Python 3.12, and this matters. The project needs 3.11 or later, and Ray,
 # which Flower's simulation backend requires, publishes no wheel for 3.13 --
-# the same wall that stops the Flower path running on the development machine.
-# Do not follow the cluster documentation's suggestion of 3.6.
-export ODRL_PYTHON="3.12"
+# the same wall that stops the Flower path running on Windows. 3.12 is also
+# what the working campaign on this machine uses.
+export ODRL_PYTHON="${ODRL_PYTHON:-3.12}"
 
 # --- Paths -----------------------------------------------------------------
-# Where this checkout lives on the cluster.
 export ODRL_REPO="${ODRL_REPO:-$HOME/odrl-fl}"
 
 # Per-task output. Many array tasks appending to one CSV interleave rows, so
 # each writes its own file and `30_collect.sh` joins them.
-export ODRL_SHARDS_DIR="$ODRL_REPO/results/shards"
-export ODRL_LOGS_DIR="$ODRL_REPO/slurm/logs"
+export ODRL_SHARDS_DIR="${ODRL_SHARDS_DIR:-$ODRL_REPO/results/shards}"
 
 # --- The campaign ----------------------------------------------------------
-export ODRL_POOL=10
-export ODRL_SEEDS=20
-export ODRL_TRIALS=5
-export ODRL_ROUNDS=20
-export ODRL_ALPHA=0.3
-export ODRL_ARRAY_TASKS=40
+# All overridable at submission time, so a trial run needs no file edit:
+#   sbatch --export=ALL,ODRL_SEEDS=2,ODRL_TRIALS=1 slurm/10_groundtruth.sbatch
+export ODRL_POOL="${ODRL_POOL:-10}"
+export ODRL_SEEDS="${ODRL_SEEDS:-20}"
+export ODRL_TRIALS="${ODRL_TRIALS:-5}"
+export ODRL_ROUNDS="${ODRL_ROUNDS:-20}"
+export ODRL_ALPHA="${ODRL_ALPHA:-0.3}"
+
+# Must match the `#SBATCH --array` line in 10_groundtruth.sbatch. Slurm reads
+# that line before any shell runs, so it cannot be set from here; the job
+# checks the two agree.
+export ODRL_ARRAY_TASKS="${ODRL_ARRAY_TASKS:-40}"
 
 # --- Helpers ---------------------------------------------------------------
 
-# pip has to be told to trust the host behind the cluster's MITM proxy.
+# pip has to be told to trust the host behind the cluster's proxy.
 export ODRL_PIP_TRUST="--trusted-host pypi.org --trusted-host files.pythonhosted.org"
 
-# Activate whichever Python environment exists, and say which one it was.
+# Activate a Python environment and say which one it was.
 #
 # A batch job runs a non-interactive shell, where `conda` is not a function and
 # `conda activate` therefore fails unless the profile script is sourced first.
-# That is the usual reason a job dies on its first line.
+# That is the usual reason a job dies immediately.
+#
+# Returns 0 and echoes what it found, or returns 1 after saying what to do.
 odrl_activate() {
-    # $VIRTUAL_ENV first. Slurm exports the submitting environment into the
-    # job, so a venv that was active when you ran sbatch names itself here and
-    # nothing has to be configured at all.
-    local candidate
+    # A venv `activate` script written for an older Python references
+    # $PYTHONHOME and $PS1 without a default, which terminates the caller
+    # outright under `set -u`. Suspend it across the source and restore it.
+    local had_u=0
+    case $- in *u*) had_u=1; set +u ;; esac
+
+    local candidate found=""
     for candidate in \
         "$ODRL_VENV" \
         "${VIRTUAL_ENV:-}" \
         "$ODRL_REPO/venv" \
-        "$ODRL_REPO/.venv" \
-        "$HOME/venv"
+        "$ODRL_REPO/.venv"
     do
-        if [[ -n "$candidate" && -f "$candidate/bin/activate" ]]; then
+        if [ -n "$candidate" ] && [ -f "$candidate/bin/activate" ]; then
             # shellcheck disable=SC1091
-            source "$candidate/bin/activate"
-            echo "environment: venv at $candidate"
-            echo "python:      $(command -v python)"
-            return 0
+            . "$candidate/bin/activate"
+            found="venv at $candidate"
+            break
         fi
     done
 
-    local base
-    if base="$(conda info --base 2>/dev/null)"; then
-        # shellcheck disable=SC1091
-        source "$base/etc/profile.d/conda.sh" || return 1
-        if conda activate "$ODRL_CONDA_ENV" 2>/dev/null; then
-            echo "environment: conda '$ODRL_CONDA_ENV'"
-            echo "python:      $(command -v python)"
-            return 0
+    if [ -z "$found" ]; then
+        local base
+        if base="$(conda info --base 2>/dev/null)"; then
+            # shellcheck disable=SC1091
+            . "$base/etc/profile.d/conda.sh"
+            if conda activate "$ODRL_CONDA_ENV" 2>/dev/null; then
+                found="conda env '$ODRL_CONDA_ENV'"
+            fi
         fi
-        echo "no conda environment '$ODRL_CONDA_ENV' and no venv found" >&2
+    fi
+
+    [ "$had_u" = 1 ] && set -u
+
+    if [ -z "$found" ]; then
+        echo "ERROR: no Python environment for this campaign." >&2
+        echo "  Looked for a venv, then for the conda env '$ODRL_CONDA_ENV'." >&2
+        echo "  The conda env 'venv' on this machine belongs to another" >&2
+        echo "  project and has no torch. Build this one once with:" >&2
+        echo "    bash $ODRL_REPO/slurm/01_setup_env.sh" >&2
         return 1
     fi
 
-    echo "no Python environment found. Set ODRL_VENV to your venv, or run" >&2
-    echo "01_setup_env.sh to build a conda environment." >&2
-    return 1
+    echo "Environment: $found"
+    echo "Using python: $(command -v python)"
+    return 0
 }
 
-# The old name, kept so nothing that calls it breaks.
-odrl_activate_conda() { odrl_activate; }
+# What is actually installed. Absence of torch was the thing that could not be
+# seen from either end of the last two failures, so every job now says.
+odrl_report_versions() {
+    python - <<'PY' 2>&1
+import importlib.metadata as md
+import sys
+
+print(f"  python {sys.version.split()[0]}")
+for name in ("torch", "numpy", "flwr", "ray"):
+    try:
+        print(f"  {name} {md.version(name)}")
+    except md.PackageNotFoundError:
+        print(f"  {name} MISSING")
+PY
+}
 
 # A three-layer MLP over synthetic data does not benefit from intra-op
-# threading, and 40 array tasks each spawning one thread per core would
-# thrash. One thread apiece is both correct and faster here.
+# threading, and forty array tasks each spawning one thread per core would
+# contend for the node. One thread apiece is both correct and faster here.
 odrl_single_threaded() {
     export OMP_NUM_THREADS=1
     export MKL_NUM_THREADS=1
     export OPENBLAS_NUM_THREADS=1
     export TORCH_NUM_THREADS=1
 }
+
+# The old name, kept so nothing that calls it breaks.
+odrl_activate_conda() { odrl_activate; }

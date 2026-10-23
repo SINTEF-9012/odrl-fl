@@ -1,3 +1,0 @@
-Slurm writes job logs here. This file exists so that the directory does too:
-`--output` paths are not created for you, and a job whose log directory is
-missing fails before it runs a line, leaving nothing to read.

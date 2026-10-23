@@ -1,19 +1,15 @@
-#!/usr/bin/env bash
-#SBATCH --job-name=odrl-flwr
-#SBATCH --output=slurm/logs/flwr-%j.out
-#SBATCH --error=slurm/logs/flwr-%j.err
-#SBATCH --cpus-per-task=12
-#SBATCH --mem=16G
-#SBATCH --time=04:00:00
-#
+#!/bin/bash
+# ============================================================================
 # Run the policy-aware strategy as a real Flower federation.
 #
 #   sbatch slurm/20_flower_sim.sbatch
+#   tail -f ~/logs/slurm/odrl-flwr_<jobid>.out
 #
-# This is the one thing in the project that has never happened. `strategy.py`
-# has 33 tests over it, including one asserting that its aggregation matches
-# Flower's own, but no federation has ever been started: Flower's simulation
-# backend needs Ray, and Ray ships no Windows wheel for Python 3.13.
+# This is the one thing in the project that has never happened.
+# `odrl_fl/strategy.py` has 33 tests over it, including one asserting that its
+# aggregation matches Flower's own, but no federation has ever been started:
+# Flower's simulation backend needs Ray, and Ray ships no Windows wheel for
+# Python 3.13.
 #
 # Two things have to come out of it. First, that the Flower path and the
 # in-process path of `odrl_fl.fedavg` reach the same accuracy on the same
@@ -24,37 +20,71 @@
 #
 # Four hours rather than the full day. If it has not run in four it is broken,
 # not slow, and a shorter limit gets it scheduled sooner.
-set -euo pipefail
+# ============================================================================
+#SBATCH --job-name odrl-flwr
+#SBATCH --output /home/rustemd/logs/slurm/odrl-flwr_%j.out
+#SBATCH --error /home/rustemd/logs/slurm/odrl-flwr_%j.err
+#SBATCH --partition sintef
+#SBATCH --ntasks 1
+#SBATCH --cpus-per-task 12
+#SBATCH --mem 16G
+#SBATCH --time 00-04:00:00
 
-source "${SLURM_SUBMIT_DIR:-.}/slurm/env.sh"
-cd "$ODRL_REPO"
-odrl_activate
+REPO_DIR="${ODRL_REPO:-$HOME/odrl-fl}"
+
+echo ""
+echo "***** LAUNCHING *****"
+date '+%F %H:%M:%S'
+echo "Repo:  $REPO_DIR"
+echo "Host:  $(hostname)"
+
+if [ ! -d "$REPO_DIR" ]; then
+    echo "ERROR: no checkout at $REPO_DIR (set ODRL_REPO)." >&2
+    exit 1
+fi
+
+cd "$REPO_DIR" || exit 1
+# shellcheck source=env.sh
+. "$REPO_DIR/slurm/env.sh"
+
+odrl_activate || exit 1
+echo "Packages:"
+odrl_report_versions
 
 # Ray is the only reason this job needs the cluster at all.
-python -c "import ray" 2>/dev/null || {
-    echo "Ray is not installed; run 01_setup_env.sh first." >&2
+if ! python -c "import ray" 2>/dev/null; then
+    echo "" >&2
+    echo "ERROR: Ray is not installed, so the simulation backend cannot run." >&2
+    echo "  pip install 'ray[default]' $ODRL_PIP_TRUST" >&2
     exit 1
-}
+fi
 
 # Ray writes a great deal to its session directory. Keep it on node-local
-# scratch where one exists, so a shared home quota is not the thing that
-# fails the run.
-export RAY_TMPDIR="${SLURM_TMPDIR:-${TMPDIR:-/tmp}}/ray-$SLURM_JOB_ID"
+# scratch where one exists, so a shared home quota is not what fails the run.
+export RAY_TMPDIR="${SLURM_TMPDIR:-${TMPDIR:-/tmp}}/ray-${SLURM_JOB_ID:-$$}"
 mkdir -p "$RAY_TMPDIR"
 trap 'rm -rf "$RAY_TMPDIR"' EXIT
 
-echo "Flower simulation: $(python -c 'import flwr; print(flwr.__version__)')"
-echo "Ray: $(python -c 'import ray; print(ray.__version__)')"
-echo "Population of $ODRL_POOL nodes, alpha $ODRL_ALPHA"
-echo
+echo ""
+echo "Federation: population of $ODRL_POOL nodes, alpha $ODRL_ALPHA," \
+     "$ODRL_ROUNDS rounds"
+echo "Ray tmp:    $RAY_TMPDIR"
+echo ""
 
 # `require-purpose` is set deliberately. Left empty, the request names only
 # actions, which nearly every contributor grants, so admission excludes almost
 # nobody and the run demonstrates nothing. A real purpose is what makes the
 # policy gate bite.
-srun flwr run . local-sim \
-    --run-config "num-server-rounds=$ODRL_ROUNDS alpha=$ODRL_ALPHA seed=0 require-purpose='ds-cancer' recheck-consent=true"
+flwr run . local-sim --run-config \
+    "num-server-rounds=$ODRL_ROUNDS alpha=$ODRL_ALPHA seed=0 require-purpose='ds-cancer' recheck-consent=true"
+STATUS=$?
 
-echo
-echo "Now check the two paths agree:"
-echo "  python experiments/run_flower_check.py"
+echo ""
+echo "***** DONE (exit $STATUS) *****"
+date '+%F %H:%M:%S'
+if [ "$STATUS" -eq 0 ]; then
+    echo ""
+    echo "Bundle written under artifacts/. Next, check the two paths agree:"
+    echo "  python experiments/run_fedavg.py --contributors <the admitted set>"
+fi
+exit $STATUS

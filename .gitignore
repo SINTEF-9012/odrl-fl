@@ -30,12 +30,12 @@ results/figures/*
 results/shards/
 results/groundtruth_wide.csv
 
-# Slurm writes one pair of logs per array task.
-slurm/logs/*
-# ...but the directory itself must exist in a fresh clone. Slurm does not
-# create the parent of an `--output` path: a job whose log directory is missing
-# fails before running a line, and leaves no log to say why.
-!slurm/logs/.gitkeep
+# Slurm logs live outside the repository, in ~/logs/slurm, which is where the
+# campaign that already runs on this cluster puts them. Keeping them out means
+# a fresh clone needs no directory created for it -- Slurm does not create the
+# parent of an `--output` path, and a job whose log directory is missing fails
+# before running a line and leaves no log to say why.
+
 # Exported policy-carrying model bundles.
 artifacts/
 *.log
