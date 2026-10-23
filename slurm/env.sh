@@ -65,6 +65,35 @@ export ODRL_ARRAY_TASKS="${ODRL_ARRAY_TASKS:-40}"
 # pip has to be told to trust the host behind the cluster's proxy.
 export ODRL_PIP_TRUST="--trusted-host pypi.org --trusted-host files.pythonhosted.org"
 
+# Activate a conda environment, surviving `set -u`.
+#
+# Two separate hazards, both of which have already cost a submission here:
+#
+#   - `conda` is not a function in a non-interactive shell, so `conda activate`
+#     fails unless conda's profile script is sourced first;
+#   - an environment's own `activate.d` hooks are not written for `set -u`.
+#     This one has a `libblas_mkl_activate.sh` that reads MKL_INTERFACE_LAYER
+#     without a default, which terminates the caller outright.
+#
+# So the flag is suspended across the whole activation and restored after.
+# Every `conda activate` in this directory goes through here.
+odrl_conda_activate() {
+    local env_name="$1" base rc had_u=0
+    case $- in *u*) had_u=1; set +u ;; esac
+
+    if base="$(conda info --base 2>/dev/null)"; then
+        # shellcheck disable=SC1091
+        . "$base/etc/profile.d/conda.sh"
+        conda activate "$env_name"
+        rc=$?
+    else
+        rc=1
+    fi
+
+    [ "$had_u" = 1 ] && set -u
+    return $rc
+}
+
 # Activate a Python environment and say which one it was.
 #
 # A batch job runs a non-interactive shell, where `conda` is not a function and
@@ -94,18 +123,11 @@ odrl_activate() {
         fi
     done
 
-    if [ -z "$found" ]; then
-        local base
-        if base="$(conda info --base 2>/dev/null)"; then
-            # shellcheck disable=SC1091
-            . "$base/etc/profile.d/conda.sh"
-            if conda activate "$ODRL_CONDA_ENV" 2>/dev/null; then
-                found="conda env '$ODRL_CONDA_ENV'"
-            fi
-        fi
-    fi
-
     [ "$had_u" = 1 ] && set -u
+
+    if [ -z "$found" ] && odrl_conda_activate "$ODRL_CONDA_ENV" 2>/dev/null; then
+        found="conda env '$ODRL_CONDA_ENV'"
+    fi
 
     if [ -z "$found" ]; then
         echo "ERROR: no Python environment for this campaign." >&2

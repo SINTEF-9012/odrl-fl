@@ -37,12 +37,10 @@ fi
 mkdir -p "$ODRL_LOGS_DIR" || exit 1
 echo "Log directory ready."
 
-base="$(conda info --base 2>/dev/null)" || {
+if ! command -v conda >/dev/null; then
     echo "ERROR: conda is not on PATH." >&2
     exit 1
-}
-# shellcheck disable=SC1091
-. "$base/etc/profile.d/conda.sh"
+fi
 
 if conda env list | awk '{print $1}' | grep -qx "$ODRL_CONDA_ENV"; then
     echo "Environment '$ODRL_CONDA_ENV' exists, reusing it."
@@ -51,7 +49,15 @@ else
     conda create --yes --name "$ODRL_CONDA_ENV" "python=$ODRL_PYTHON" || exit 1
 fi
 
-conda activate "$ODRL_CONDA_ENV" || exit 1
+# Through the helper, not `conda activate` directly. This environment has an
+# `activate.d/libblas_mkl_activate.sh` that reads MKL_INTERFACE_LAYER without a
+# default, and under the `set -u` at the top of this file that ends the script
+# on the spot -- which is exactly how an earlier version of this script died
+# after reporting "reusing it" and before installing anything.
+odrl_conda_activate "$ODRL_CONDA_ENV" || {
+    echo "ERROR: could not activate '$ODRL_CONDA_ENV'." >&2
+    exit 1
+}
 
 # A guard against installing into the wrong place. Without it, a conda that
 # silently failed to activate would have this script install torch into the
@@ -68,12 +74,20 @@ echo ""
 # CPU-only torch on purpose: the model is a three-layer MLP and the per-run
 # cost is Python and data handling, not matrix multiplication, so a CUDA build
 # would add gigabytes and buy nothing.
-echo "Installing numpy and CPU torch through conda..."
-conda install --yes -c pytorch -c conda-forge numpy pytorch cpuonly || {
-    echo "conda install failed; falling back to pip for torch." >&2
-    # shellcheck disable=SC2086
-    pip install torch --index-url https://download.pytorch.org/whl/cpu $ODRL_PIP_TRUST
-}
+#
+# Skipped when torch already imports. The conda solver takes minutes on an
+# environment it has nothing to change, and re-solving a working install is a
+# good way to break one.
+if python -c "import torch, numpy" 2>/dev/null; then
+    echo "torch and numpy already present, skipping the conda step."
+else
+    echo "Installing numpy and CPU torch through conda..."
+    conda install --yes -c pytorch -c conda-forge numpy pytorch cpuonly || {
+        echo "conda install failed; falling back to pip for torch." >&2
+        # shellcheck disable=SC2086
+        pip install torch --index-url https://download.pytorch.org/whl/cpu $ODRL_PIP_TRUST
+    }
+fi
 
 # The rest through pip, since flwr is not packaged for conda. --trusted-host
 # gets past the cluster's proxy.
