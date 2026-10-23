@@ -31,7 +31,11 @@ results/shards/
 results/groundtruth_wide.csv
 
 # Slurm writes one pair of logs per array task.
-slurm/logs/
+slurm/logs/*
+# ...but the directory itself must exist in a fresh clone. Slurm does not
+# create the parent of an `--output` path: a job whose log directory is missing
+# fails before running a line, and leaves no log to say why.
+!slurm/logs/.gitkeep
 # Exported policy-carrying model bundles.
 artifacts/
 *.log

@@ -28,7 +28,7 @@ set -euo pipefail
 
 source "${SLURM_SUBMIT_DIR:-.}/slurm/env.sh"
 cd "$ODRL_REPO"
-odrl_activate_conda
+odrl_activate
 
 # Ray is the only reason this job needs the cluster at all.
 python -c "import ray" 2>/dev/null || {

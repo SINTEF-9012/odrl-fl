@@ -17,9 +17,18 @@ export ODRL_ACCOUNT=""
 # than at an arbitrary point.
 export ODRL_TIME="23:30:00"
 
-# --- Conda -----------------------------------------------------------------
-# A user-owned environment in $HOME, as the cluster documentation requires:
-# only administrators can install into the global Anaconda.
+# --- The Python environment ------------------------------------------------
+# Either a venv or a conda environment works, and `odrl_activate` picks
+# whichever is present. A venv is tried first, because if you already have one
+# that runs the tests then it is the one that should run the jobs.
+#
+# Set ODRL_VENV to a path to force a venv; leave it empty and the usual
+# locations inside the checkout are tried.
+export ODRL_VENV="${ODRL_VENV:-}"
+
+# A user-owned conda environment in $HOME, as the cluster documentation
+# requires: only administrators can install into the global Anaconda. Used only
+# if no venv is found.
 export ODRL_CONDA_ENV="odrl-fl"
 
 # Python 3.12, and this matters. The project needs 3.11 or later, and Ray,
@@ -50,21 +59,52 @@ export ODRL_ARRAY_TASKS=40
 # pip has to be told to trust the host behind the cluster's MITM proxy.
 export ODRL_PIP_TRUST="--trusted-host pypi.org --trusted-host files.pythonhosted.org"
 
-# Activate the conda environment from inside a batch job, where the shell is
-# not interactive and `conda` is therefore not a function.
-odrl_activate_conda() {
+# Activate whichever Python environment exists, and say which one it was.
+#
+# A batch job runs a non-interactive shell, where `conda` is not a function and
+# `conda activate` therefore fails unless the profile script is sourced first.
+# That is the usual reason a job dies on its first line.
+odrl_activate() {
+    # $VIRTUAL_ENV first. Slurm exports the submitting environment into the
+    # job, so a venv that was active when you ran sbatch names itself here and
+    # nothing has to be configured at all.
+    local candidate
+    for candidate in \
+        "$ODRL_VENV" \
+        "${VIRTUAL_ENV:-}" \
+        "$ODRL_REPO/venv" \
+        "$ODRL_REPO/.venv" \
+        "$HOME/venv"
+    do
+        if [[ -n "$candidate" && -f "$candidate/bin/activate" ]]; then
+            # shellcheck disable=SC1091
+            source "$candidate/bin/activate"
+            echo "environment: venv at $candidate"
+            echo "python:      $(command -v python)"
+            return 0
+        fi
+    done
+
     local base
-    base="$(conda info --base 2>/dev/null)" || {
-        echo "conda not on PATH" >&2
+    if base="$(conda info --base 2>/dev/null)"; then
+        # shellcheck disable=SC1091
+        source "$base/etc/profile.d/conda.sh" || return 1
+        if conda activate "$ODRL_CONDA_ENV" 2>/dev/null; then
+            echo "environment: conda '$ODRL_CONDA_ENV'"
+            echo "python:      $(command -v python)"
+            return 0
+        fi
+        echo "no conda environment '$ODRL_CONDA_ENV' and no venv found" >&2
         return 1
-    }
-    # shellcheck disable=SC1091
-    source "$base/etc/profile.d/conda.sh" || return 1
-    conda activate "$ODRL_CONDA_ENV" || {
-        echo "no conda environment '$ODRL_CONDA_ENV'; run 01_setup_env.sh" >&2
-        return 1
-    }
+    fi
+
+    echo "no Python environment found. Set ODRL_VENV to your venv, or run" >&2
+    echo "01_setup_env.sh to build a conda environment." >&2
+    return 1
 }
+
+# The old name, kept so nothing that calls it breaks.
+odrl_activate_conda() { odrl_activate; }
 
 # A three-layer MLP over synthetic data does not benefit from intra-op
 # threading, and 40 array tasks each spawning one thread per core would

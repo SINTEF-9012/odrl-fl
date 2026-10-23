@@ -30,7 +30,7 @@ set -euo pipefail
 
 source "${SLURM_SUBMIT_DIR:-.}/slurm/env.sh"
 cd "$ODRL_REPO"
-odrl_activate_conda
+odrl_activate
 odrl_single_threaded
 
 task="${SLURM_ARRAY_TASK_ID:-0}"

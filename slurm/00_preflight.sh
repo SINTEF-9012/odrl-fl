@@ -49,7 +49,7 @@ fi
 
 echo
 echo "Environment:"
-if odrl_activate_conda; then
+if odrl_activate; then
     ok "conda environment '$ODRL_CONDA_ENV' activates"
     # Exits non-zero if anything required is missing, so the shell's own
     # counter sees it. Printing FAIL from a subprocess and exiting 0 would

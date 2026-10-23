@@ -14,7 +14,7 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$here/env.sh"
 
 cd "$ODRL_REPO"
-odrl_activate_conda
+odrl_activate
 
 out="results/groundtruth_wide.csv"
 
