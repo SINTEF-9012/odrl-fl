@@ -81,11 +81,35 @@ recheck-consent = true
 #     address = "127.0.0.1:9093"
 #     insecure = true
 #
-# A *simulation* federation would be the natural choice for this project, but
-# Flower's simulation backend requires Ray, and Ray publishes no Windows wheels
-# for Python 3.13 -- so the deployment engine is the only Flower path on this
-# platform. Experiments therefore use `odrl_fl.fedavg` (in-process, no
-# transport); see its module docstring.
+# A *simulation* federation is the natural choice for this project, and is
+# configured below -- but it requires Ray, which publishes no Windows wheels
+# for Python 3.13, so on that platform the deployment engine is the only Flower
+# path. Sweeps use `odrl_fl.fedavg` either way (in-process, no transport); see
+# its module docstring for why there are two paths at all.
+
+# --- Simulation federation -------------------------------------------------
+#
+# Used on Linux, where Ray is available:
+#
+#     flwr run . local-sim
+#
+# `num-supernodes` is the size of the *population*, not of the admitted
+# consortium. The whole point of `PolicyAwareFedAvg` is that it declines to
+# train on some of the nodes that connected, so a federation whose population
+# equals the consortium would demonstrate nothing.
+
+[tool.flwr.federations]
+default = "local-sim"
+
+[tool.flwr.federations.local-sim]
+options.num-supernodes = 10
+
+[tool.flwr.federations.local-sim.options.backend]
+# One CPU per node, matching the Slurm allocation. A three-layer MLP gains
+# nothing from intra-op threading, and ten Ray actors each claiming every core
+# would contend for the whole node.
+client-resources.num-cpus = 1
+client-resources.num-gpus = 0.0
 
 # --- Tooling ---------------------------------------------------------------
 

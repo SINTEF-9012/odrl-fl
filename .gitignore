@@ -21,6 +21,17 @@ results/*
 !results/figures/
 results/figures/*
 !results/figures/*.svg
+# The cluster campaign is the exception to the exception. Each array task
+# writes its own shard, and the joined lattice at 20 federations x 5
+# replicates is roughly 20 MB -- regenerable from `slurm/10_groundtruth.sbatch`
+# and far past what belongs in a repository. The five-federation
+# `groundtruth.csv` it supersedes stays, because the paper's figures are
+# rendered from committed numbers.
+results/shards/
+results/groundtruth_wide.csv
+
+# Slurm writes one pair of logs per array task.
+slurm/logs/
 # Exported policy-carrying model bundles.
 artifacts/
 *.log

@@ -132,3 +132,85 @@ class TestHistory:
         h = History(contributors=[])
         assert h.final_accuracy == 0.0
         assert h.best_accuracy == 0.0
+
+
+class TestTrials:
+    """`trial` re-runs one federation; `seed` changes which federation it is."""
+
+    def test_trial_zero_reproduces_the_committed_ground_truth(self):
+        """The guard on three hours of committed compute.
+
+        `results/groundtruth.csv` was produced before `trial` existed. If
+        `trial=0` is not bit-for-bit what those rows were trained under, then
+        replicate runs cannot be compared against them and the lattice would
+        have to be thrown away and recomputed. Checked against the file itself
+        rather than against hard-coded numbers, so it keeps holding if the
+        lattice is ever regenerated.
+        """
+        import csv
+        from pathlib import Path
+
+        path = Path(__file__).resolve().parent.parent / "results" / "groundtruth.csv"
+        if not path.exists():
+            pytest.skip("ground truth not present")
+
+        with path.open(encoding="utf-8") as fh:
+            rows = {
+                (r["members"], int(r["seed"])): r
+                for r in csv.DictReader(fh)
+                if r["members"].count("-") == 0      # singletons: one run each
+            }
+        if not rows:
+            pytest.skip("no singleton rows in the ground truth")
+
+        for (members, seed), row in sorted(rows.items())[:3]:
+            history = run_fedavg(
+                contributors=[int(members)],
+                n_clients=10,
+                rounds=int(row["rounds"]),
+                alpha=float(row["alpha"]),
+                seed=seed,
+                trial=0,
+            )
+            committed = [float(x) for x in row["curve"].split()]
+            assert [round(a, 6) for a in history.accuracy] == committed, (
+                f"subset {members} seed {seed} no longer reproduces"
+            )
+
+    def test_a_different_trial_changes_the_result(self):
+        kwargs = {"contributors": [0, 1], "n_clients": 4, "rounds": 3, "seed": 0}
+        assert (
+            run_fedavg(**kwargs, trial=0).accuracy
+            != run_fedavg(**kwargs, trial=1).accuracy
+        )
+
+    def test_a_trial_is_itself_deterministic(self):
+        kwargs = {"contributors": [0, 1], "n_clients": 4, "rounds": 3, "seed": 0,
+                  "trial": 7}
+        assert run_fedavg(**kwargs).accuracy == run_fedavg(**kwargs).accuracy
+
+    def test_trial_does_not_depend_on_the_interpreter(self):
+        """crc32, not `hash()`.
+
+        A per-process seed would make every replicate campaign unreproducible,
+        which is the defect `odrl_fl.tcga._site_seed` exists to document.
+        """
+        import os
+        import subprocess
+        import sys
+
+        code = (
+            "from odrl_fl.fedavg import run_fedavg;"
+            "print(run_fedavg(contributors=[0], n_clients=4, rounds=2,"
+            " seed=0, trial=3).accuracy)"
+        )
+        runs = set()
+        for h in (0, 1):
+            env = dict(os.environ, PYTHONHASHSEED=str(h))
+            runs.add(
+                subprocess.run(
+                    [sys.executable, "-c", code],
+                    capture_output=True, text=True, check=True, env=env,
+                ).stdout.strip()
+            )
+        assert len(runs) == 1, f"result depends on PYTHONHASHSEED: {runs}"

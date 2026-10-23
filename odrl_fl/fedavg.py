@@ -31,6 +31,7 @@ run -- untenable for a sweep over a powerset.
 
 from __future__ import annotations
 
+import zlib
 from collections import OrderedDict
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
@@ -98,6 +99,7 @@ def run_fedavg(
     alpha: float = 1.0,
     seed: int = 0,
     size_variation: float = 0.0,
+    trial: int = 0,
 ) -> History:
     """Train a federated model over `contributors` and report per-round accuracy.
 
@@ -105,6 +107,18 @@ def run_fedavg(
     partitions are keyed on client id, so client 3 holds the same data whether
     or not clients 1 and 2 were selected. That is what makes comparing subsets
     meaningful.
+
+    `seed` fixes the *federation*: who holds which data, and the held-out test
+    set. `trial` fixes only the *training* -- initial parameters and batch
+    order. The two are separate because comparing subsets and estimating the
+    noise in that comparison are different questions. Sweeping `seed` varies
+    the world; sweeping `trial` at a fixed `seed` re-runs the same world and
+    shows how much of an observed difference between two subsets is luck.
+
+    Without that separation an argmax over many candidates is biased upward,
+    because the winner is partly whichever candidate drew the kindest
+    initialisation -- so a regret measured against it is an upper bound rather
+    than a measurement.
 
     `size_variation` must match whatever produced the partitions being
     reasoned about elsewhere. The policy-aware path has contributors
@@ -120,9 +134,18 @@ def run_fedavg(
     if not contributors:
         raise ValueError("at least one contributor is required")
 
-    # Seed torch as well as numpy: initial parameters must not vary between
-    # runs, or subset comparisons pick up initialisation noise.
-    torch.manual_seed(seed)
+    # Seed torch as well as numpy: within one trial, initial parameters must not
+    # vary between runs, or subset comparisons pick up initialisation noise.
+    #
+    # `trial == 0` must stay exactly `seed`, because that is what every row
+    # already in `results/groundtruth.csv` was trained under and those rows must
+    # remain reproducible. crc32 rather than `hash()` for the rest: Python
+    # randomises string hashing per interpreter under PYTHONHASHSEED, which
+    # silently cost this project a reproducible TCGA split once already
+    # (`odrl_fl.tcga._site_seed`).
+    torch.manual_seed(
+        seed if trial == 0 else zlib.crc32(f"{seed}:{trial}".encode())
+    )
 
     partitions = {
         cid: load_partition(

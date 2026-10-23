@@ -1,0 +1,11 @@
+# The cluster scripts run on Linux. A CRLF checkout makes every one of them
+# fail with "bad interpreter: no such file or directory", which is a confusing
+# way to lose an afternoon, so their line endings are pinned regardless of
+# core.autocrlf on the machine they were committed from.
+*.sh text eol=lf
+*.sbatch text eol=lf
+
+# Committed results are compared across machines. Normalising them keeps a
+# checkout on Windows from reporting every row as modified.
+*.csv text eol=lf
+*.json text eol=lf
