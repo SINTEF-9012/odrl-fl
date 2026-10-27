@@ -693,13 +693,34 @@ naming actions and no purpose, nearly everybody grants \emph{use} and
 \emph{aggregate}, so $a$ approaches $n$ and the search gives up at 17
 contributors after 86\,s.
 
-It also predicts where the method stops, which is a more useful thing than
-observing it. At 24 contributors the server admitted 18 and evaluated 262\,149
-candidates in 326\,s, a rate of 803 compositions per second that agrees with
-the 893 per second measured offline. Extrapolating the same admission rate to a
-population of 32 gives $a \approx 24$, hence 16.8 million compositions and
-about 5.8 hours. Our 32-node run was cancelled at its four-hour limit, which is
-what Equation~\ref{eq:cost} says should have happened.
+The claim that cost follows $a$ and not $n$ can be tested directly, by
+comparing configurations that share an admissible set size while differing in
+population and in requirement. Two such pairs are present in our measurements,
+and they are the strongest evidence we have for
+Equation~\ref{eq:cost}.
+
+A population of 13 under the weakest requirement admits 11.2 on average and
+examines 3\,756 candidates in 3.5\,s. A population of 20 under \emph{research}
+admits 11.6 and examines 3\,899 in 3.3\,s. Likewise a population of 14 under
+the weakest requirement admits 12.0 and examines 7\,136, while a population of
+21 under \emph{research} admits 12.2 and examines 7\,176. In both pairs the
+populations differ by seven contributors, so the nominal search space differs
+by a factor of 128, and the requirements differ as well. The measured cost
+differs by 4\% in the first pair and by 1\% in the second. Across a
+128-fold change in the size of the space being searched, the work is the same
+to within a few per cent, because the admissible set is the same size.
+
+Equation~\ref{eq:cost} also predicts where the method stops, which is more
+useful than observing it. At 24 contributors the server admitted 18 and
+evaluated 262\,149 candidates in 326\,s, a rate of 803 compositions per second
+that agrees with the 893 per second measured offline. Extrapolating the same
+admission rate to a population of 32 gives $a \approx 24$, hence 16.8 million
+compositions and about 5.8 hours. Our 32-node run was stopped by a four-hour
+scheduler limit while it was still searching, which is what
+Equation~\ref{eq:cost} says should have happened. We did not repeat it with a
+longer limit. The quantity it would confirm is already fixed by four exact
+measurements and by the paired comparison above, and a population of 32 under a
+narrower requirement is reached in minutes.
 
 We draw the practical conclusion, and not the pessimistic one. The policy check
 is affordable exactly when the federation's purpose is specific, and a
