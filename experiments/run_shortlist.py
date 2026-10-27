@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import math
 import statistics
 import sys
 from collections import defaultdict
@@ -95,6 +96,24 @@ def kendall_tau(a: list[float], b: list[float]) -> float:
                 discordant += 1
     total = concordant + discordant
     return (concordant - discordant) / total if total else 0.0
+
+
+def sign_test(worse: int, better: int) -> float:
+    """Two-sided exact sign test on paired differences, ties discarded.
+
+    No assumption about the shape of the differences, which matters because
+    regret is bounded below by zero and most federations sit near that bound,
+    so the differences are nowhere near normal. Ties are discarded rather than
+    split, which is the conservative convention.
+
+    Returns 1.0 when every pair is a tie: no information, not agreement.
+    """
+    n = worse + better
+    if n == 0:
+        return 1.0
+    extreme = min(worse, better)
+    tail = sum(math.comb(n, i) for i in range(extreme + 1))
+    return min(1.0, 2 * tail / 2**n)
 
 
 def split_replicates(
@@ -252,6 +271,41 @@ def main(argv: list[str] | None = None) -> int:
           f"{statistics.fmean(largest):.4f}")
     print(f"  a feasible candidate drawn at random               "
           f"{statistics.fmean(random_pick):.4f}")
+
+    # Is a short run as good as the full budget, or merely close to it?
+    #
+    # The mean regrets differ in the fourth decimal place, which no eye should
+    # be trusted to read. The comparison is paired -- every exploratory budget
+    # is evaluated on the same federations -- so the per-federation differences
+    # are the thing to look at, and a sign test on them needs no assumption
+    # about their distribution.
+    full = max(args.rounds)
+    print(f"\nAgainst the full budget of {full} rounds, paired by federation")
+    print(f"({len(per_seed)} federations). A difference whose interval spans")
+    print("zero is not evidence that the shorter run is worse.\n")
+    print(f"{'R':>3} {'k':>3} {'mean diff':>10} {'worse':>6} {'better':>7} "
+          f"{'sign p':>8} {'cost':>7}")
+    for k in args.k:
+        baseline = {
+            seed: next(p.regret for p in per_seed[seed]
+                       if p.explore_rounds == full and p.k == k)
+            for seed in per_seed
+        }
+        for r in args.rounds:
+            if r == full:
+                continue
+            diffs = [
+                next(p.regret for p in per_seed[seed]
+                     if p.explore_rounds == r and p.k == k) - baseline[seed]
+                for seed in per_seed
+            ]
+            worse = sum(1 for d in diffs if d > 0)
+            better = sum(1 for d in diffs if d < 0)
+            p_value = sign_test(worse, better)
+            cost = next(p.fraction for p in per_seed[next(iter(per_seed))]
+                        if p.explore_rounds == r and p.k == k)
+            print(f"{r:>3} {k:>3} {statistics.fmean(diffs):>+10.5f} "
+                  f"{worse:>6} {better:>7} {p_value:>8.3f} {cost:>6.1%}")
 
     if not all(holdout_flags):
         print("\nOne replicate per consortium, so selection and scoring share a")
