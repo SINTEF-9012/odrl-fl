@@ -106,6 +106,17 @@ for n in $SIZES; do
         break
     fi
 
+    # `flwr run --stream` exits 0 even when the simulation it streamed raised,
+    # so the exit code alone reported "finished, exit 0" for five crashed
+    # federations in job 3077. The output has to be read.
+    if grep -qE "Simulation raised an exception|Exit Code: 7[0-9][0-9]" "$out"; then
+        echo "--- population $n: the simulation FAILED, see the traceback above" >&2
+        rc=1
+    fi
+    if ! grep -q "COST evaluated=" "$out"; then
+        echo "--- population $n: no pruning counters were logged" >&2
+    fi
+
     echo "--- population $n finished, exit $rc"
     [ "$rc" -ne 0 ] && STATUS=1
 done

@@ -165,9 +165,14 @@ def report_cost(
     if result is None:
         log(INFO, "COST search=none (admission took a shortcut)")
         return
+    # The counters live on `result.stats`, not on the result. Getting this
+    # wrong cost job 3077 every population: an AttributeError inside the
+    # logging killed the simulation it was measuring, which is why the whole
+    # of this function now runs inside a guard at the call site.
+    stats = result.stats
     log(INFO, "COST evaluated=%d generated=%d exhaustive=%d reduction=%.6f",
-        result.candidates_evaluated, result.candidates_generated,
-        result.exhaustive_space, result.reduction)
+        stats.candidates_evaluated, stats.candidates_generated,
+        stats.exhaustive_space, stats.reduction)
 
 
 @app.main()
@@ -204,9 +209,16 @@ def main(grid: Grid, context: Context) -> None:
     )
     decided = perf_counter()
     report(announcements, admission)
-    report_cost(
-        announcements, admission, collected - started, decided - collected
-    )
+    # Instrumentation must never be able to break the run it observes. An
+    # AttributeError in report_cost brought down five federations in job 3077,
+    # all of which had already done their real work. A measurement that fails
+    # should cost a log line, not the experiment.
+    try:
+        report_cost(
+            announcements, admission, collected - started, decided - collected
+        )
+    except Exception as exc:  # noqa: BLE001 - deliberately broad
+        log(INFO, "COST unavailable: %s: %s", type(exc).__name__, exc)
 
     # The gate. A duty that must be discharged before the run cannot be
     # discharged *by* the run, so the only faithful thing a system can do is
