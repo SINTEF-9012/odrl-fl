@@ -37,6 +37,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from logging import INFO
+from time import perf_counter
 
 import torch
 from flwr.app import ArrayRecord, ConfigRecord, Context, MetricRecord
@@ -53,6 +54,7 @@ from odrl_fl.strategy import (
     PolicyAwareFedAvg,
     admit,
     collect_announcements,
+    declaration,
     declared_utility,
 )
 from odrl_fl.task import N_CLASSES, Net, evaluate, global_test_loader
@@ -126,6 +128,48 @@ def report(announcements: list[Announcement], admission) -> None:
             obligation.action, ", ".join(obligation.owed_by) or "the consortium")
 
 
+def report_cost(
+    announcements: list[Announcement],
+    admission,
+    collect_seconds: float,
+    admit_seconds: float,
+) -> None:
+    """What the policy round cost, in one machine-readable line per quantity.
+
+    The paper claims that anti-monotone pruning is what makes the search
+    affordable, and until now that claim was only measured offline. These lines
+    measure it on the path that actually runs, and the prefix makes them easy to
+    extract from a job log -- `sacct` is disabled on our cluster, so a log line
+    is the only durable record a run leaves.
+    """
+    # Rebuild the record each node sent and measure it. The ConfigRecord the
+    # server received is not retained past parsing, so this reconstructs an
+    # equivalent one from the parsed Announcement. It measures the payload and
+    # not Flower's framing around it, which is the part this work is
+    # responsible for.
+    sizes = []
+    for a in announcements:
+        record = declaration(
+            a.policy,
+            n_train=a.n_train,
+            label_counts=a.label_counts,
+            codes=a.codes,
+        )
+        sizes.append(sum(len(str(k)) + len(str(v)) for k, v in record.items()))
+    log(INFO, "COST nodes=%d collect_s=%.4f admit_s=%.4f",
+        len(announcements), collect_seconds, admit_seconds)
+    log(INFO, "COST declaration_bytes_mean=%.1f max=%d",
+        (sum(sizes) / len(sizes)) if sizes else 0.0, max(sizes, default=0))
+
+    result = admission.result
+    if result is None:
+        log(INFO, "COST search=none (admission took a shortcut)")
+        return
+    log(INFO, "COST evaluated=%d generated=%d exhaustive=%d reduction=%.6f",
+        result.candidates_evaluated, result.candidates_generated,
+        result.exhaustive_space, result.reduction)
+
+
 @app.main()
 def main(grid: Grid, context: Context) -> None:
     num_rounds = int(context.run_config.get("num-server-rounds", 5))
@@ -149,14 +193,20 @@ def main(grid: Grid, context: Context) -> None:
     # NoFeasibleConsortium if nothing composes -- deliberately fatal, because
     # falling back to training on everyone produces exactly the unusable model
     # this work is about.
+    started = perf_counter()
     announcements, unreachable = collect_announcements(grid)
+    collected = perf_counter()
     admission = admit(
         announcements,
         request,
         declared_utility(N_CLASSES),
         rejected=unreachable,
     )
+    decided = perf_counter()
     report(announcements, admission)
+    report_cost(
+        announcements, admission, collected - started, decided - collected
+    )
 
     # The gate. A duty that must be discharged before the run cannot be
     # discharged *by* the run, so the only faithful thing a system can do is
