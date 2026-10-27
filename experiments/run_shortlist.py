@@ -323,13 +323,22 @@ def main(argv: list[str] | None = None) -> int:
     print("there because the two disagree: the penalty sits in a few")
     print("federations rather than in a shift of the whole distribution.\n")
     print(f"{'R':>3} {'k':>3} {'mean diff':>10} {'95% interval':>20} "
-          f"{'median':>9} {'w/b':>7} {'sign p':>7} {'cost':>6}")
+          f"{'median':>9} {'w/b':>7} {'sign p':>7} {'cost':>6} {'verdict':>12}")
     for k in args.k:
         baseline = {
             seed: next(p.regret for p in per_seed[seed]
                        if p.explore_rounds == full and p.k == k)
             for seed in per_seed
         }
+        # The equivalence margin is the full budget's own mean regret. An
+        # interval lying entirely inside +-margin says the shorter budget
+        # differs from the full one by less than the full one differs from the
+        # truth, which is as strong a statement of equivalence as this design
+        # can support. An interval that merely contains zero says nothing: at
+        # seven rounds it reaches to +0.036, forty times the margin, so "not
+        # significant" there means the study cannot tell rather than that the
+        # budgets agree.
+        margin = statistics.fmean(baseline.values())
         for r in args.rounds:
             if r == full:
                 continue
@@ -341,15 +350,25 @@ def main(argv: list[str] | None = None) -> int:
             worse = sum(1 for d in diffs if d > 0)
             better = sum(1 for d in diffs if d < 0)
             lo, hi = bootstrap_mean(diffs)
-            excludes = "*" if lo > 0 or hi < 0 else " "
+            if lo > 0 or hi < 0:
+                mark, verdict = "*", "worse"
+            elif -margin <= lo and hi <= margin:
+                mark, verdict = " ", "equivalent"
+            else:
+                mark, verdict = " ", "cannot tell"
             cost = next(p.fraction for p in per_seed[next(iter(per_seed))]
                         if p.explore_rounds == r and p.k == k)
             print(f"{r:>3} {k:>3} {statistics.fmean(diffs):>+10.5f} "
-                  f"[{lo:>+8.5f},{hi:>+8.5f}]{excludes} "
+                  f"[{lo:>+8.5f},{hi:>+8.5f}]{mark} "
                   f"{statistics.median(diffs):>+9.5f} "
                   f"{worse:>3}/{better:<3} {sign_test(worse, better):>7.3f} "
-                  f"{cost:>5.1%}")
-    print("\n* the interval on the mean excludes zero.")
+                  f"{cost:>5.1%} {verdict:>12}")
+        print(f"      equivalence margin for k={k}: the full budget's own "
+              f"regret, {margin:.5f}\n")
+    print("* the interval on the mean excludes zero: measurably worse.")
+    print("'equivalent' means the whole interval lies inside +-margin.")
+    print("'cannot tell' means it contains zero but reaches past the margin,")
+    print("which is a statement about this study rather than about the budget.")
 
     if not all(holdout_flags):
         print("\nOne replicate per consortium, so selection and scoring share a")
