@@ -377,13 +377,15 @@ something larger. The second is that the family of admissible groups is
 downward closed. That is exactly the condition under which candidate generation
 in the style of Apriori~\cite{apriori} is sound. Candidates of size $k+1$ need
 only be formed from admissible candidates of size $k$, and the remainder of the
-space can be discarded without ever being examined. This is what turns a search
-over the powerset into something a server can do in the time between a node
-connecting and the first round starting.
+space can be discarded without ever being examined. This is what can make a
+search over the powerset affordable, and whether it does so depends on how much
+there is to prune.
 
 Algorithm~\ref{alg:admit} states the search. Line~\ref{alg:prune} is where
 anti-monotonicity does the work. Without it, the loop would have to consider
-every one of the $2^{n}-1$ subsets.
+every one of the $2^{n}-1$ subsets. How much it saves in practice depends on
+how strict the requirement is, and we measure that in
+Section~\ref{sec:pruning}.
 
 \begin{algorithm}[t]
 \caption{Admission by downward-closed search}
@@ -628,6 +630,64 @@ Section~\ref{sec:eval} shows that they agree numerically on a federation run
 through each.
 
 \subsection{Results and Main Observations}
+
+\paragraph{How far the pruning gets}
+\label{sec:pruning}
+Section~\ref{sec:algebra} argues that anti-monotonicity makes the search over
+subsets affordable. Table~\ref{tab:pruning} measures it. Nothing is trained
+here, because the search is a computation over declared terms, so we can reach
+pool sizes at which training every subset would take weeks. Utility is the
+number of members, deliberately: pruning is driven by feasibility and never by
+utility, so a trivial utility keeps the result independent of how utility is
+estimated.
+
+\begin{table}[t]
+\caption{Candidates examined before admission is decided.}
+\label{tab:pruning}
+\centering
+\begin{tabular}{lrrrr}
+\toprule
+Requirement & Pool & Subsets & Examined & Time \\
+\midrule
+actions only & 14 & 16\,383 & 7\,136 & 5.2\,s \\
+actions only & 16 & 65\,535 & 25\,634 & 23.3\,s \\
+actions only & 17 & 131\,071 & 80\,005 & 86.1\,s \\
+\midrule
+\emph{ds-cancer} & 16 & 65\,535 & 10\,652 & 8.9\,s \\
+\emph{ds-cancer} & 18 & 262\,143 & 73\,730 & 82.6\,s \\
+\midrule
+\emph{research} & 16 & 65\,535 & 889 & 0.5\,s \\
+\emph{research} & 19 & 524\,287 & 2\,772 & 1.8\,s \\
+\emph{research} & 22 & 4\,194\,303 & 7\,586 & 8.1\,s \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The answer depends entirely on the requirement, and the paper would be wrong to
+claim otherwise. Under the broadest requirement, \emph{research}, the search
+examines 7\,586 of 4.19 million subsets at a pool of 22, and it does so in
+8.1\,s. The fraction examined also \emph{falls} as the pool grows, from
+1.4\% at 16 contributors to 0.18\% at 22. That is the shape a scalability claim
+needs: the space grows by a factor of 64 over those six steps and the work
+grows by a factor of 8.5.
+
+Under the narrowest requirement, which names actions and no purpose, there is
+very little to prune. Nearly every contributor grants \emph{use} and
+\emph{aggregate}, so few candidates are eliminated, and the search gives up at
+17 contributors after 86\,s. The growth there is simply exponential.
+
+Two readings follow, and we prefer the second. The first is that the method has
+a scale limit, which it does. The second is that the pruning pays for itself
+exactly when the federation's purpose is specific, and a federation whose
+requirement names no purpose at all is one where the policy check has little to
+decide in the first place. A consortium assembled to study one disease is both
+the realistic case and the case the search handles best.
+
+We should also note a limitation of the table. The two rows where the search
+exceeded our time budget, at 17 and 18 contributors, are averages over two
+generated corpora instead of five, because the sweep stops a requirement once
+one search runs long. Their times are therefore less stable than the others,
+and we draw no conclusion from the exact percentages in those rows.
 
 \paragraph{The cost of ignoring policy}
 
