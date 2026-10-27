@@ -24,9 +24,11 @@ from __future__ import annotations
 import argparse
 import csv
 import math
+import random
 import statistics
 import sys
 from collections import defaultdict
+from collections.abc import Sequence
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -101,12 +103,21 @@ def kendall_tau(a: list[float], b: list[float]) -> float:
 def sign_test(worse: int, better: int) -> float:
     """Two-sided exact sign test on paired differences, ties discarded.
 
-    No assumption about the shape of the differences, which matters because
-    regret is bounded below by zero and most federations sit near that bound,
-    so the differences are nowhere near normal. Ties are discarded rather than
-    split, which is the conservative convention.
+    No assumption about the shape of the differences, and none about their
+    magnitude either -- which turns out to be the problem. Across these
+    federations the direction of the difference is close to evenly split at
+    every exploratory budget, including one round, while the *mean* difference
+    at one round is eighteen times the full budget's entire regret. The penalty
+    lives in a few federations where a short run fails badly, and a test that
+    counts only directions cannot see it.
 
-    Returns 1.0 when every pair is a tie: no information, not agreement.
+    Kept and reported because the balance of directions is itself the finding:
+    a short run is not systematically worse, it occasionally fails badly, and
+    those are different risks for a deployment to carry. `bootstrap_mean` is
+    the test that bears on how much it costs.
+
+    Returns 1.0 when every pair is a tie: absence of information, not
+    agreement.
     """
     n = worse + better
     if n == 0:
@@ -114,6 +125,31 @@ def sign_test(worse: int, better: int) -> float:
     extreme = min(worse, better)
     tail = sum(math.comb(n, i) for i in range(extreme + 1))
     return min(1.0, 2 * tail / 2**n)
+
+
+def bootstrap_mean(
+    values: Sequence[float], draws: int = 20000, seed: int = 0
+) -> tuple[float, float]:
+    """Percentile interval for the mean of paired differences.
+
+    Resampling rather than a t interval, because regret is bounded below by
+    zero, most federations sit near that bound, and the few that do not carry
+    the whole effect. That distribution is strongly skewed and a symmetric
+    interval around the mean would misstate it in both directions.
+
+    An interval excluding zero is evidence that the shorter budget costs
+    accuracy on average. One spanning zero is not evidence that it does not --
+    with twenty federations and a skewed quantity, it may only mean the study
+    cannot tell.
+    """
+    rng = random.Random(seed)
+    n = len(values)
+    if n == 0:
+        return (0.0, 0.0)
+    means = sorted(
+        statistics.fmean(rng.choices(values, k=n)) for _ in range(draws)
+    )
+    return (means[int(0.025 * draws)], means[int(0.975 * draws)])
 
 
 def split_replicates(
@@ -281,10 +317,13 @@ def main(argv: list[str] | None = None) -> int:
     # about their distribution.
     full = max(args.rounds)
     print(f"\nAgainst the full budget of {full} rounds, paired by federation")
-    print(f"({len(per_seed)} federations). A difference whose interval spans")
-    print("zero is not evidence that the shorter run is worse.\n")
-    print(f"{'R':>3} {'k':>3} {'mean diff':>10} {'worse':>6} {'better':>7} "
-          f"{'sign p':>8} {'cost':>7}")
+    print(f"({len(per_seed)} federations). The bootstrap interval is on the")
+    print("mean difference; an interval excluding zero means the shorter")
+    print("budget costs accuracy. The median and the direction counts are")
+    print("there because the two disagree: the penalty sits in a few")
+    print("federations rather than in a shift of the whole distribution.\n")
+    print(f"{'R':>3} {'k':>3} {'mean diff':>10} {'95% interval':>20} "
+          f"{'median':>9} {'w/b':>7} {'sign p':>7} {'cost':>6}")
     for k in args.k:
         baseline = {
             seed: next(p.regret for p in per_seed[seed]
@@ -301,11 +340,16 @@ def main(argv: list[str] | None = None) -> int:
             ]
             worse = sum(1 for d in diffs if d > 0)
             better = sum(1 for d in diffs if d < 0)
-            p_value = sign_test(worse, better)
+            lo, hi = bootstrap_mean(diffs)
+            excludes = "*" if lo > 0 or hi < 0 else " "
             cost = next(p.fraction for p in per_seed[next(iter(per_seed))]
                         if p.explore_rounds == r and p.k == k)
             print(f"{r:>3} {k:>3} {statistics.fmean(diffs):>+10.5f} "
-                  f"{worse:>6} {better:>7} {p_value:>8.3f} {cost:>6.1%}")
+                  f"[{lo:>+8.5f},{hi:>+8.5f}]{excludes} "
+                  f"{statistics.median(diffs):>+9.5f} "
+                  f"{worse:>3}/{better:<3} {sign_test(worse, better):>7.3f} "
+                  f"{cost:>5.1%}")
+    print("\n* the interval on the mean excludes zero.")
 
     if not all(holdout_flags):
         print("\nOne replicate per consortium, so selection and scoring share a")
