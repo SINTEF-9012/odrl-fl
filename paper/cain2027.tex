@@ -15,7 +15,26 @@
 \usepackage{amsmath,amssymb}
 \usepackage{booktabs}
 \usepackage{url}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{listings}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
 \usepackage[hidelinks]{hyperref}
+
+%% The worked example shows real JSON-LD, so the listing style has to be
+%% readable at this size without colour.
+\lstdefinestyle{jsonld}{
+  basicstyle=\ttfamily\scriptsize,
+  columns=fullflexible,
+  breaklines=true,
+  showstringspaces=false,
+  frame=none,
+  aboveskip=2pt,
+  belowskip=2pt,
+}
 
 %% Anything still to be filled from the cluster campaign is wrapped in this, so
 %% an unverified number cannot reach a draft unnoticed. It must not appear in
@@ -44,9 +63,7 @@ mechanism that treats those conditions as a first-class input to the training
 pipeline. Its basis is a composition algebra for a fragment of ODRL, together
 with a proof that capability is anti-monotone in the contributor set, so that
 admitting a client can only narrow what the group may do with the model it
-produces. Anti-monotonicity makes the resulting search downward closed and
-therefore prunable, which is what allows the check to run before the first
-training round rather than as an audit afterwards. We implement this as a
+produces. Anti-monotonicity makes the resulting search downward closed and therefore prunable. That is what allows the check to run before the first training round, and not as an audit afterwards. We implement this as a
 Flower strategy that collects declarations from the connected nodes, composes
 them, fixes membership before round one, refuses to start when an obligation
 has not been discharged, re-checks consent between rounds, and emits a model
@@ -58,8 +75,7 @@ of the 1023 candidate consortia, at 20 federations, with five replicates each,
 so that a candidate is chosen on one training run and scored on others. Around
 eight of twenty rounds turns out to be \emph{equivalent} to training every
 candidate to completion, in the sense that the paired difference between them
-is smaller than the full budget's own distance from the truth, at two fifths of
-the compute; the heuristic of admitting every permitted contributor gives up
+is smaller than the full budget's own distance from the truth, at two fifths of the compute. The heuristic of admitting every permitted contributor gives up
 1.72 percentage points. We also report three training-free estimators that do
 not work, one of which anti-correlates with accuracy, because they are the
 reason the second stage has to train at all.
@@ -74,32 +90,22 @@ policy composition, AI engineering
 \section{Introduction}
 \label{sec:intro}
 
-A federated learning system has to decide who trains. The decision is made by
-the server, usually once per round, and the literature on how to make it well
-is substantial: participants can be ranked by the volume of data they hold, by
-the staleness of their updates, by their expected latency, or by a statistical
-utility derived from their local loss. What these strategies have in common is
+A federated learning system has to decide who trains. The server makes this decision, usually once per round, and there is a large literature on how to make it well. Participants can be ranked by the volume of data they hold, by the staleness of their updates, by their expected latency, or by a statistical utility derived from their local loss. What these strategies have in common is
 that they are all concerned with the quality of the model that results. None of
 them is concerned with whether that model may be used.
 
 The question is not rhetorical. When several institutions contribute data to a
 shared model, each of them attaches conditions to the data it contributes, and
 those conditions bind the artefacts derived from it. A hospital may permit its
-records to be used for cancer research but not for commercial purposes; another
-may permit commercial use but require that any derived model be published; a
-third may permit neither and require that results be returned to it before
+records to be used for cancer research but not for commercial purposes. Another may permit commercial use but require that any derived model be published. A third may permit neither and require that results be returned to it before
 release. A model trained on all three is a derivative of all three sets of
 terms simultaneously, and what may be done with it is whatever all three allow
 at once. That may be nothing.
 
-This is a systems problem rather than a legal one, and the reason is timing. The
+This is a systems problem and not a legal one, and the reason is timing. The
 conditions are known before training begins, they are machine-readable in a
 growing number of real settings, and the composition that determines the
-group's rights is computable. A system that does not compute it has to discover
-the answer afterwards, when the compute has already been spent, and the
-discovery is not recoverable: the model exists, it is a derivative of terms that
-forbid the intended use, and no amount of retraining on a subset undoes the
-fact that the weights were seen. A system that does compute it can decline to
+group's rights is computable. A system that does not compute it has to discover the answer afterwards, once the compute has already been spent. At that point the discovery cannot be acted upon. The model exists, it is a derivative of terms that forbid the intended use, and no amount of retraining on a subset undoes the fact that the weights were seen. A system that does compute it can decline to
 start.
 
 What makes the check tractable is a property of composition itself. Consider
@@ -124,19 +130,14 @@ This paper is about what follows from building that into a federated learning
 server. We make four contributions.
 
 First, a composition algebra for a fragment of ODRL, with a proof that
-capability is anti-monotone in the contributor set. The algebra is restated here
-in full rather than cited, so that the system can be read without reference to
+capability is anti-monotone in the contributor set. We restate the algebra here in full instead of citing it, so that the system can be read without reference to
 anything else, and the proof is what licenses the pruning.
 
 Second, a Flower strategy, \texttt{PolicyAwareFedAvg}, in which admission is a
 pure function of the declarations the nodes send. The server states what the
 federation needs to be able to do, collects declarations, composes them,
 searches for a group whose combined terms grant the requirement, and trains only
-on that group. It refuses to begin when an obligation that cannot be discharged
-by training has no evidence of having been discharged otherwise, re-asks every
-active node for its terms between rounds so that membership can shrink when
-consent is withdrawn, and writes the trained weights alongside the agreement
-they were produced under.
+on that group. It refuses to begin when an obligation cannot be discharged by training and no evidence is given that somebody discharged it some other way. Between rounds it re-asks every active node for its terms, so that membership can shrink when consent is withdrawn. At the end it writes the trained weights alongside the agreement they were produced under.
 
 Third, a two-stage selection pipeline. The policy filter decides which groups
 are admissible and is silent on which of them trains best, so the second stage
@@ -157,70 +158,152 @@ what it recovers, and Section~\ref{sec:discussion} discusses what the results
 do and do not establish.
 
 %% ===========================================================================
-\section{Background and Related Work}
+\section{Research Context}
 \label{sec:related}
+
+This section reviews the three bodies of work that our contribution sits
+between. The first is concerned with choosing clients well. The second is
+concerned with expressing conditions of use. The third is concerned with
+recording what a model was built from. We then explain what none of them
+provides.
 
 \subsection{Client Selection in Federated Learning}
 
-Which clients participate in a round is a well-studied lever. Federated
-averaging samples participants uniformly, and much subsequent work improves on
-that by selecting on some signal correlated with the value of a client's
-contribution. Oort ranks participants by a statistical utility derived from
-their local training loss combined with a measure of how quickly they can
-complete a round, and reports substantial reductions in time to a target
-accuracy. Contribution measures in the Shapley family attribute a model's
-performance among its contributors, and can in principle be used to select, at a
-cost that grows rapidly with the number of participants. Other strategies select
-to correct for data heterogeneity, to bound staleness, or to respect a device's
-energy budget.
+Which clients take part in a round is a well-studied lever. Federated
+averaging~\cite{fedavg} samples participants uniformly at random. A good deal
+of later work improves on that by selecting on some signal that correlates with
+the value of a client's contribution.
 
-Our mechanism is orthogonal to all of these and composes with them. A
-statistical selector decides which of the admissible groups to prefer; what we
-add is the determination of which groups are admissible at all. The two stages
-are separated in our implementation for exactly this reason, and the second
-stage could be replaced by any of the strategies above without touching the
-first.
+Oort~\cite{oort} is a representative example. It ranks participants by a
+statistical utility derived from their local training loss, combined with a
+measure of how quickly each one can finish a round, and it reports large
+reductions in the time needed to reach a target accuracy. A second family of
+methods attributes a model's performance among the clients that produced it.
+Data Shapley~\cite{datashapley} is the best known of these. Such methods can be
+used to select clients, but their cost grows very quickly as the number of
+participants rises. Other strategies select clients in order to correct for
+differences in their data distributions, to keep updates from becoming stale,
+or to respect the energy budget of a device.
 
-\subsection{Usage Control and Policy Languages}
+All of these methods have one thing in common. They are concerned with the
+quality of the model that will result. None of them is concerned with whether
+that model may be used once it exists. Our mechanism therefore does not compete
+with them. It runs before them, and it answers a different question: which
+groups of clients are permitted at all. A statistical selector then chooses
+among the groups that our mechanism allows. We keep the two apart in our
+implementation for this reason, and the second of them could be replaced by any
+of the methods above without changing the first.
 
-The Open Digital Rights Language is a W3C Recommendation providing a model of
-permissions, prohibitions, duties and constraints over assets, serialised as
-linked data. It describes what may be done with an asset; it does not say what
-happens when several policies must hold at once, and it has no vocabulary for
-the artefact that training produces. A community draft profile for AI introduces
-actions specific to AI workflows, among them \emph{ai-training} for fine-tuning
-and \emph{ai-augment} for retrieval and grounding, which makes the question of
-derived artefacts more pressing rather than less, since those are precisely the
-two ways private data is used to adapt a model.
+\subsection{Expressing Conditions of Use}
 
-In software, licence composition is mature: SPDX expresses licence expressions
-that combine terms, and bills of materials inventory what a build consumed.
-These are the right analogy and they stop short of what is needed here, because
-a software build's output is governed by rules stated in the licences
-themselves, whereas no comparable rules exist for a model trained on many
-datasets. In biomedical data sharing, the GA4GH Data Use Ontology provides
-machine-readable conditions, deployed at scale by public archives, but it
-describes one dataset against one access request and has no composition
-semantics. The usage control line of work, including UCON and the data space
-architectures built on it, contributes the insight that obligations persist
-after access is granted, which is why duties survive composition in our algebra
-and why a model bundle has to carry them.
+The Open Digital Rights Language~\cite{odrl-model,odrl-vocab} is a W3C
+Recommendation. It provides a model of permissions, prohibitions, duties and
+constraints over assets, and it is serialised as linked data. ODRL describes
+what may be done with an asset. It does not say what happens when several
+policies have to hold at the same time, and it has no vocabulary for the
+artefact that training produces.
 
-\subsection{Governance as a Systems Concern}
+In September 2026 the ODRL community published a draft profile for
+AI~\cite{odrl-ai}. The profile introduces actions that are specific to AI
+workflows, among them \emph{ai-training} for fine-tuning and
+\emph{ai-augment} for retrieval and grounding. This makes the question of
+derived artefacts more pressing and not less, because those two actions are
+exactly how private data is used to adapt a model today.
 
-Recent work in AI engineering treats model provenance and governance as
-properties to be engineered rather than documented, through model cards, through
-inventories of a model's ingredients, and through licences such as OpenRAIL that
-restrict downstream use contractually. Our position is that these are necessary
-and insufficient for the multi-contributor case: an inventory tells a reader
-what went in, and a contractual restriction tells them what they may not do, but
-neither computes what the group may do, and that is the question a server has to
-answer before it allocates compute. The contribution we claim is a mechanism
-that computes it, inside the system, before training.
+Licence composition is mature in software. SPDX~\cite{spdx} defines licence
+expressions that combine terms, and bills of materials such as
+CycloneDX~\cite{cyclonedx} record what a build consumed. This is the right
+analogy, and it stops short of what is needed here. The output of a software
+build is governed by rules that the licences themselves state. No comparable
+rules exist for a model trained on many datasets.
+
+In biomedical data sharing, the GA4GH Data Use Ontology~\cite{duo} provides
+machine-readable conditions, and public archives such as the European
+Genome-phenome Archive~\cite{ega} publish them at scale. Related work on the
+Automatable Discovery and Access Matrix~\cite{adam} does the same for discovery.
+Both describe one dataset against one access request. Neither has a composition
+semantics. Finally, the usage control line of work, beginning with
+UCON~\cite{ucon} and continuing through the data space
+architectures~\cite{ids}, contributes an insight that matters here: obligations
+persist after access has been granted. That is why duties survive composition
+in our algebra, and why a model bundle has to carry them.
+
+\subsection{Recording What a Model Was Built From}
+
+Work in AI engineering increasingly treats provenance and governance as
+properties to be engineered, and not only documented. Model
+cards~\cite{modelcards} and datasheets~\cite{datasheets} record what a model or
+a dataset is and how it was made. Audits of dataset licensing~\cite{provenance}
+show how often that information is missing or wrong in practice. Licences such
+as OpenRAIL~\cite{openrail} restrict downstream use by contract, and they bind
+derivatives.
+
+\subsection{What None of This Provides}
+
+Our position is that these efforts are necessary and not sufficient for the
+case where several parties contribute. An inventory tells a reader what went
+into a model. A contractual restriction tells them what they may not do with it.
+Neither one computes what a particular group of contributors may collectively
+do with the model their data produced.
+
+That last question is the one a federated learning server has to answer before
+it allocates any compute, because afterwards the answer cannot be acted upon.
+The contribution we claim is a mechanism that computes it, inside the system,
+before training begins.
 
 %% ===========================================================================
-\section{Composing Usage Policies}
+\section{Proposed Approach}
 \label{sec:algebra}
+
+Our approach has three parts, and this section presents them in turn. The first
+part is an algebra that composes the conditions declared by several
+contributors into a single agreement, together with the property of that
+algebra which everything else depends on. The second part is a federated
+learning server that computes the composition and acts on it before training
+starts. The third part is a two-stage selection procedure, because the
+composition decides which groups of contributors are permitted and says nothing
+about which of the permitted groups produces the better model.
+
+Fig.~\ref{fig:pipeline} shows how the parts fit together. The policy round at
+the top happens once, before the first training round. The loop in the middle
+is ordinary federated averaging, with one addition: the server re-asks every
+active node for its terms between rounds. The bundle at the bottom is what
+leaves the system, and it carries the agreement that the model was trained
+under.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+  node distance=5.5mm,
+  box/.style={draw, rounded corners=1pt, align=center, font=\small,
+              inner sep=3pt, text width=58mm},
+  dec/.style={draw, align=center, font=\small, inner sep=3pt,
+              text width=58mm, fill=black!4},
+  arr/.style={-{Latex[length=1.6mm]}},
+]
+\node[box] (declare) {nodes declare their own terms};
+\node[box, below=of declare] (compose) {server composes the declarations};
+\node[dec, below=of compose] (admit) {admit a group that grants the\\
+  requirement, or stop};
+\node[dec, below=of admit] (gate) {evidence for every precondition,\\
+  or stop};
+\node[box, below=of gate] (train) {train one round on the admitted group};
+\node[box, below=of train] (recheck) {re-ask terms; membership may shrink};
+\node[box, below=of recheck] (bundle) {emit bundle: weights, agreement,\\
+  declarations, duties still owed};
+
+\draw[arr] (declare) -- (compose);
+\draw[arr] (compose) -- (admit);
+\draw[arr] (admit) -- (gate);
+\draw[arr] (gate) -- (train);
+\draw[arr] (train) -- (recheck);
+\draw[arr] (recheck) -- (bundle);
+\draw[arr] (recheck.east) -- ++(4mm,0) |- node[pos=0.25, right, font=\scriptsize]
+  {next round} (train.east);
+\end{tikzpicture}
+\caption{The policy round, the training loop and the bundle.}
+\label{fig:pipeline}
+\end{figure}
 
 \subsection{The Fragment}
 
@@ -233,11 +316,11 @@ ones that matter for training are \emph{use}, \emph{aggregate} and
 \emph{derive}, the last distinguishing a model that is a transformation of the
 data from one that merely summarises it.
 
-Purposes form a hierarchy rather than a flat list. A permission granted for
+Purposes form a hierarchy and not a flat list. A permission granted for
 \emph{research} covers \emph{ds-cancer}, because cancer research is research,
 but the converse does not hold. The relation matters to composition because two
 contributors granting different but related purposes are not in conflict: the
-group may act for whatever purpose both grants cover, which is the more specific
+group may act for whatever purpose both grants cover, This is the more specific
 of the two. Treating purposes as opaque strings reports conflicts that do not
 exist, and in our measurements it changes the results.
 
@@ -291,48 +374,121 @@ Two consequences matter for a system. The first is that a group which cannot
 satisfy a requirement cannot be rescued by recruitment, so a server that has
 found a candidate inadmissible need never reconsider it as a subset of
 something larger. The second is that the family of admissible groups is
-downward closed, which is the condition under which candidate generation in the
-style of Apriori is sound: candidates of size $k+1$ need only be formed from
-admissible candidates of size $k$, and the rest of the space can be discarded
-without being examined. This is what turns a search over the powerset into
-something a server can do between a node connecting and the first round
-starting.
+downward closed. That is exactly the condition under which candidate generation
+in the style of Apriori~\cite{apriori} is sound. Candidates of size $k+1$ need
+only be formed from admissible candidates of size $k$, and the remainder of the
+space can be discarded without ever being examined. This is what turns a search
+over the powerset into something a server can do in the time between a node
+connecting and the first round starting.
 
-We verify the property in the implementation as well as proving it, through
-property-based testing over randomly generated policies, because it is the
-implementation and not the proof that the system relies on.
+Algorithm~\ref{alg:admit} states the search. Line~\ref{alg:prune} is where
+anti-monotonicity does the work. Without it, the loop would have to consider
+every one of the $2^{n}-1$ subsets.
+
+\begin{algorithm}[t]
+\caption{Admission by downward-closed search}
+\label{alg:admit}
+\begin{algorithmic}[1]
+\Require declarations $D$, requirement $r$
+\Ensure the largest admissible group, or none
+\State $F_1 \gets \{\,\{d\} : d \in D,\ \mathrm{grants}(d, r)\,\}$
+\State $k \gets 1$;\quad $best \gets \emptyset$
+\While{$F_k \neq \emptyset$}
+  \State $best \gets$ any member of $F_k$ of greatest data volume
+  \State $C_{k+1} \gets \{\,S \cup S' : S, S' \in F_k,\ |S \cup S'| = k+1\,\}$
+  \ForAll{$S \in C_{k+1}$} \label{alg:prune}
+    \If{some $k$-subset of $S$ is not in $F_k$}
+      \State discard $S$ \Comment{no superset can be admissible}
+    \EndIf
+  \EndFor
+  \State $F_{k+1} \gets \{\,S \in C_{k+1} : \mathrm{grants}(A(S), r)\,\}$
+  \State $k \gets k+1$
+\EndWhile
+\State \Return $best$
+\end{algorithmic}
+\end{algorithm}
+
+We prove the property and we also test it in the implementation, using
+property-based testing over randomly generated policies. The system relies on
+the implementation and not on the proof.
+
+\subsection{A Worked Example}
+\label{sec:worked}
+
+It is worth following the three contributors of
+Section~\ref{sec:intro} through the algebra, because the outcome is easier to
+accept once seen in the concrete. Each one declares a permission to
+\emph{derive} its data, constrained to a set of purposes. Contributor~A
+declares the following.
+
+\begin{lstlisting}[style=jsonld]
+{ "@context": "http://www.w3.org/ns/odrl.jsonld",
+  "uid": "urn:policy:contributor-a",
+  "permission": [{
+    "target": "urn:asset:a",
+    "action": "derive",
+    "constraint": [{
+      "leftOperand": "purpose",
+      "operator": "isAnyOf",
+      "rightOperand": ["ds-cancer", "method-dev"] }] }] }
+\end{lstlisting}
+
+Contributor~B declares the same shape with purposes
+\texttt{["ds-neuro", "method-dev"]}, and contributor~C with
+\texttt{["ds-cancer", "ds-neuro"]}. Now compose them, element by element, using
+the rules of Table~\ref{tab:rules}. All three grant \emph{derive}, so the
+intersection of the permitted actions keeps it. The purpose constraints are
+conjoined, which for a set-valued operand is an intersection:
+\[
+\{\text{cancer},\text{method}\} \cap
+\{\text{neuro},\text{method}\} \cap
+\{\text{cancer},\text{neuro}\} = \emptyset .
+\]
+
+The permission survives with an unsatisfiable constraint, so the group may
+\emph{derive} for no purpose at all. The composed agreement grants nothing, and
+the three institutions cannot train a usable model together.
+
+Any two of them can. A and B share \emph{method-dev}, A and C share
+\emph{ds-cancer}, and B and C share \emph{ds-neuro}. A server that checked each
+candidate on its own against its research question would therefore accept all
+three, and would be wrong. This is the non-transitivity of
+Section~\ref{sec:intro}, and it is why Algorithm~\ref{alg:admit} searches over
+subsets instead of filtering members one at a time.
+
+The example also shows why the purpose hierarchy matters. Suppose contributor~A
+had declared \emph{research} instead of \emph{ds-cancer}. Compared as strings,
+\emph{research} and \emph{ds-cancer} do not match, and composition would report
+a conflict. Compared as classes of an ontology, cancer research is a kind of
+research, so the meet of the two is \emph{ds-cancer} and the group retains a
+purpose it really does hold.
 
 %% ===========================================================================
-\section{A Policy-Aware Federated Learning Server}
+\subsection{A Policy-Aware Federated Learning Server}
 \label{sec:system}
 
-The mechanism is implemented as a strategy for Flower, replacing federated
-averaging's participant sampling. We describe it in the order the server
-executes it, because the ordering is the design: each step has to happen before
-something that would otherwise be unrecoverable.
+The mechanism is implemented as a strategy for Flower, and it replaces the
+participant sampling of federated averaging. We describe it in the order in
+which the server executes it, because that ordering is the design. Each step
+has to happen before something that would otherwise be impossible to undo.
 
-\subsection{Declarations Come from the Contributors}
+\paragraph{Declarations Come from the Contributors}
 
 The server could look up its clients' terms in a registry, and that would be
 simpler, but a server that supplies its clients' consent terms demonstrates
 nothing. Each node therefore translates its own conditions locally and declares
-the result, and the server only ever acts on what it was told. A declaration is
-a small record carrying the node's policy, the actions it grants, and the volume
-of data it holds, and the server parses it defensively: a missing policy, a
-malformed one, or one that is valid JSON but not a policy is rejected with a
-reason rather than treated as permissive.
+the result, and the server only ever acts on what it was told. A declaration is a small record. It carries the node's policy, the actions that policy grants, and the volume of data the node holds. The server parses it defensively. A missing policy, a malformed one, or one that is valid JSON but not a policy is rejected with a reason, and never treated as permissive.
 
 That a declaration may be false is worth addressing directly, because it decides
 whether the trust model is sound. Overstating a restriction only shrinks what
 the declaring party may itself do with the group's model, so there is no
 incentive to do it; understating one exposes the declaring party to the
-consequences of a use it did not permit. Declared permissions are thus
-self-penalising, which is why they can be acted on at face value. This argument
+consequences of a use it did not permit. Declared permissions are thus self-penalising. That is why they can be acted on at face value. This argument
 does not extend to anything else a contributor might declare, and in particular
 not to data quality, where the incentive runs the other way. We therefore ask
 contributors to declare nothing except their terms.
 
-\subsection{Membership Is Decided Before Round One}
+\paragraph{Membership Is Decided Before Round One}
 
 The server states what the federation must be able to do, as a set of required
 actions and, importantly, a required purpose. The requirement is what makes the
@@ -343,43 +499,36 @@ agreement grants the requirement, using the pruning of
 Section~\ref{sec:algebra}, and returns both the admitted set and a reason for
 each exclusion.
 
-Two choices here are deliberate. Admission is a pure function, separated from
-the strategy that honours it, so that it can be tested without starting a
-federation; our test suite exercises it in isolation, which matters because the
-simulation backend is not available on every platform we develop on. And when
-nothing is admissible the server fails rather than falling back to training on
-everyone, because the fallback produces precisely the unusable model the
+Two choices here are deliberate. First, admission is a pure function, kept separate from the strategy that honours it. This means it can be tested without starting a federation, and our test suite exercises it in isolation. That matters in practice, because the simulation backend is not available on every platform we develop on. And when
+nothing is admissible the server fails. It does not fall back to training on everyone, because the fallback produces precisely the unusable model the
 mechanism exists to prevent.
 
-\subsection{Obligations That Training Cannot Discharge}
+\paragraph{Obligations That Training Cannot Discharge}
 
 Composition accumulates duties, and some of them are preconditions: an
 obligation to obtain ethical approval before use cannot be discharged by the
-run that depends on it. A system has one faithful option, which is to refuse to
-start without evidence that somebody discharged the obligation out of band. The
+run that depends on it. A system has one faithful option: to refuse to start without evidence that somebody discharged the obligation out of band. The
 server therefore gates on evidence supplied as part of its configuration.
 Nothing validates that the evidence is genuine, and it is not meant to: the
 point is that a person has to assert it explicitly, so that the assertion is
 recorded in the run's configuration and in the bundle the run produces.
 
-\subsection{Consent Is Not Settled Once}
+\paragraph{Consent Is Not Settled Once}
 
 Between rounds the server re-asks every active node for its terms and drops
 those that have withdrawn, lapsed, or breached a duty too often. Membership can
 therefore shrink during a run. The contribution set cannot, because a round that
 has happened cannot be unhappened, and the resulting model remains a derivative
-of every node that ever contributed to it. The bundle records both, which is the
-only honest way to represent a federation whose membership changed: the rights
+of every node that ever contributed to it. The bundle records both. That is the only honest way to represent a federation whose membership changed: the rights
 attached to the model are composed from everyone who contributed, not from
 whoever was still present at the end.
 
-\subsection{The Model Carries Its Agreement}
+\paragraph{The Model Carries Its Agreement}
 
 The run writes the weights alongside the composed agreement, every
 contributor's declaration, and what remains owed. Two properties of this are
-worth stating. Verification recomputes the agreement from the recorded
-declarations rather than comparing a stored hash, so a bundle whose agreement
-does not follow from its declarations is detected rather than trusted. And
+worth stating. Verification recomputes the agreement from the recorded declarations instead of comparing a stored hash, so a bundle whose agreement
+does not follow from its declarations is detected and not trusted. And
 composition is recursive: when the model is reused as a contribution to
 something else, its agreement composes in like any other policy, so by
 anti-monotonicity the rights attached to the result can only narrow. A
@@ -390,10 +539,10 @@ The bundles are not signed, which we return to in
 Section~\ref{sec:discussion}.
 
 %% ===========================================================================
-\section{Two-Stage Member Selection}
+\subsection{Two-Stage Member Selection}
 \label{sec:twostage}
 
-\subsection{Why a Second Stage Is Needed}
+\paragraph{Why a Second Stage Is Needed}
 
 The policy filter is sound and incomplete. It decides admissibility exactly, and
 it has nothing to say about which admissible group produces the better model. In
@@ -404,13 +553,12 @@ The obvious response is to estimate utility without training, and we tried
 three ways of doing so. A \emph{coverage} estimator scores a group by how much
 of the label space its members jointly hold. A \emph{divergence} estimator
 scores the Jensen--Shannon divergence between the group's pooled label
-distribution and the uniform one. A \emph{gradient} estimator, which is the
-novel one, scores the coherence of the members' local gradients at a shared
+distribution and the uniform one. A \emph{gradient} estimator, the novel one, scores the coherence of the members' local gradients at a shared
 initialisation, on the reasoning that clients whose gradients agree should
 average well. All three fail, and Section~\ref{sec:eval} reports how. The
 failure is not a side note: it is why the second stage trains.
 
-\subsection{Ranking by a Short Run}
+\paragraph{Ranking by a Short Run}
 
 The second stage trains every admissible candidate for a small number of rounds,
 ranks them by the accuracy reached, and continues only the leaders to the full
@@ -420,28 +568,26 @@ width $k$, and the total budget $T$. The cost in rounds is
 n R + k (T - R),
 \]
 where $n$ is the number of admissible candidates, against $nT$ for training
-everything to completion. The first term dominates, which is the sense in which
+everything to completion. The first term dominates. That is the sense in which
 the two stages depend on each other: the policy filter is what makes $n$ small
 enough for the second stage to be affordable.
 
 What the second stage recovers has to be stated carefully, and we return to it
 with measurements in Section~\ref{sec:eval}. A short run does not identify the
-best candidate. It identifies a near-optimal one, for a reason that is a
-property of the training curves rather than of the ranking: by the point at
+best candidate. It identifies a near-optimal one, for a reason that is a property of the training curves and not of the ranking: by the point at
 which the shortlist becomes reliable, the top of the field has flattened, so
 ordering the leaders wrongly costs very little final accuracy. The engineering
 claim is therefore that a short run separates bad candidates from good ones
-dependably and good from best unreliably, and that this is sufficient when the
-object is a usable model rather than an argmax.
+dependably and good from best unreliably, and that this is sufficient when the object is a usable model and not an argmax.
 
 %% ===========================================================================
-\section{Evaluation}
+\section{Proof of Concept}
 \label{sec:eval}
 
-\subsection{Setup}
+\subsection{Experiment Design}
 
 Measuring what a selection strategy gives up requires knowing what it could have
-achieved, which means a ground truth that is exact rather than sampled. We
+achieved, which means a ground truth that is exact and not sampled. We
 therefore train \emph{every} non-empty subset of a ten-contributor pool, 1023 of
 them, at each of 20 independently generated federations, for twenty rounds, and
 record the whole accuracy curve of every run. A complete lattice means that a
@@ -449,7 +595,7 @@ statement such as ``this strategy missed the best candidate'' is a fact rather
 than an artefact of which subsets happened to be drawn.
 
 Each of those runs is repeated five times, varying only the training
-randomness and holding the federation fixed, which is 102\,300 runs in total.
+randomness and holding the federation fixed. That is 102\,300 runs in total.
 The replicates are not for error bars. Without them a strategy would be scored
 against the single training run that it also selected on, so the best observed
 candidate would partly be whichever one drew the kindest initialisation, and
@@ -464,9 +610,8 @@ across clients by a Dirichlet label skew at $\alpha = 0.3$. The skew is not
 incidental. At $\alpha = 1.0$ every consortium converges to around 0.98 and the
 spread across them is 0.005, which leaves no utility axis to estimate at all;
 real institutions specialise, and a group missing a class cannot learn it.
-Twenty rounds rather than five because at five the task has not converged,
-and an accuracy measured there reports how fast a group starts rather than how
-good its model is. Contributor policies are generated from the distribution of
+We use twenty rounds and not five, because at five the task has not converged,
+and an accuracy measured there reports how fast a group starts, and not how good its model is. Contributor policies are generated from the distribution of
 condition sets observed in a public archive of real data use conditions.
 
 Evaluation uses a shared held-out test set, never the contributors' own splits,
@@ -482,7 +627,9 @@ modes. Both paths report the same metric, and
 Section~\ref{sec:eval} shows that they agree numerically on a federation run
 through each.
 
-\subsection{The Cost of Ignoring Policy}
+\subsection{Results and Main Observations}
+
+\paragraph{The cost of ignoring policy}
 
 We first ask what a policy-blind server gives up, against a baseline that
 reflects how federations are actually assembled: take the contributors with the
@@ -510,23 +657,22 @@ volume-ranked group may use its own model one time in five. Once a purpose is
 named it never may. The number to take from this is not the 20\%, which depends
 on the requirement, but the asymmetry: the check that avoids the outcome costs
 no training whatsoever, and it removes between 61\% and 98.6\% of the candidate
-space as a side effect, which is what the second stage then runs on.
+space as a side effect. That smaller set is what the second stage runs on.
 
-The broader requirement prunes more, which is worth a moment's thought because
+The broader requirement prunes more. This deserves a moment's thought, because
 it inverts the obvious expectation. A grant covering all of \emph{research} also
 covers \emph{ds-cancer}, so requiring \emph{research} is the harder demand and
 fewer groups meet it. Strictness in the requirement and breadth in the purpose
 run in opposite directions.
 
-\subsection{Three Estimators That Do Not Work}
+\paragraph{Three estimators that do not work}
 
 Table~\ref{tab:estimators} reports the three training-free estimators against
 the exhaustive truth, restricted to the admissible candidates, since an
 inadmissible group has no deployable utility however well it trains.
 
 \begin{table}[t]
-\caption{Training-free utility estimators over 20 federations. The best
-consortium has 4.0 members on average.}
+\caption{Training-free utility estimators over 20 federations.}
 \label{tab:estimators}
 \centering
 \begin{tabular}{lrrr}
@@ -544,38 +690,35 @@ All three cost real accuracy, with intervals excluding zero, and the pattern of
 how they fail is more informative than the magnitude. The first two select 8.6
 members where the best consortium has 4.0: both score a group monotonically in
 its membership, so their maximum is always close to the largest admissible set,
-and the decision they implement is in effect ``admit everyone you may''. The
-third, which is the novel one, anti-correlates with accuracy. We read that as
+and the decision they implement is in effect ``admit everyone you may''. The third, the novel one, anti-correlates with accuracy. We read that as
 gradient coherence at initialisation measuring how similar clients are rather
 than how much they jointly add, so that it rewards redundancy — which is the
 opposite of what a heterogeneous federation needs.
 
-Two caveats belong with this table rather than in a footnote. Frontier recall
+Two caveats belong with this table and not in a footnote. Frontier recall
 and precision, which we had intended as the primary measure, are not
 interpretable here: 16 of the 20 federations are saturated, so which candidates
-are non-dominated is settled by noise rather than by the estimator, and the
-evaluation script reports that rather than printing a number. And the regret
+are non-dominated is settled by noise and not by the estimator, and the evaluation script reports this instead of printing a number. And the regret
 column is measured against the best observed candidate without a held-out
 replicate, so unlike Table~\ref{tab:costfidelity} it still carries the upward
 bias of an argmax and is an upper bound on estimator error. The two columns are
 therefore not directly comparable, and we rely on $\tau$ and the pick size for
 the conclusion.
 
-We report this rather than omitting it, for two reasons. It is the justification
-for a second stage that trains, which is a design decision a reader would
+We report this, and we did consider leaving it out, for two reasons. It is the justification
+for a second stage that trains. That is a design decision a reader would
 otherwise question. And ``admit every contributor you are permitted to'' is a
 strategy a practitioner might plausibly adopt on intuition, so it is worth
 knowing what it costs: measured properly, as the largest-admissible row of
 Table~\ref{tab:costfidelity}, 1.72 percentage points of accuracy against 0.09
 for the full budget.
 
-\subsection{What a Short Run Buys}
+\paragraph{What a short run buys}
 
 Every strategy is evaluated on the same twenty federations, so the comparison
 between exploratory budgets is paired and the per-federation differences are
 what we report. Regret is bounded below by zero and most federations sit near
-that bound, so we give a bootstrap percentile interval on the mean difference
-rather than a symmetric one.
+that bound, so we give a bootstrap percentile interval on the mean difference instead of a symmetric one.
 
 Table~\ref{tab:costfidelity} reports the second stage against the full budget
 at a shortlist of three. The verdict column distinguishes three cases, and the
@@ -583,12 +726,12 @@ distinction is the result. A budget is \emph{worse} when the interval on the
 difference excludes zero. It is \emph{equivalent} when the interval lies
 entirely within the full budget's own regret, which says the shorter budget
 differs from the full one by less than the full one differs from the truth. It
-is \emph{cannot tell} when the interval contains zero but reaches beyond that
-margin, which is a statement about the study rather than about the budget.
+is \emph{cannot tell} when the interval contains zero but reaches beyond that margin. Such an interval tells us about our study, and not about the budget.
+
+\input{fig_costfidelity}
 
 \begin{table}[t]
-\caption{Ranking by a short run against the full budget, $k = 3$,
-paired over 20 federations. Margin 0.00095.}
+\caption{Short runs against the full budget, $k=3$.}
 \label{tab:costfidelity}
 \centering
 \begin{tabular}{lrrl}
@@ -645,13 +788,12 @@ from 0.240 to 0.866 with no break anywhere, so round eight is not where the
 ranking becomes correct; at that point the ordering is still substantially
 wrong and the best candidate sits at rank 33. The shortlist works because the
 top of the field has flattened, not because it has been correctly sorted. The
-number eight is a property of where this task's curves flatten, which is why we
-report a curve and expect a deployment to measure its own.
+number eight is a property of where this task's curves flatten. That is why we report a curve and expect a deployment to measure its own.
 
-\subsection{The System Path}
+\subsection{The System in Operation}
 
 The sweeps above establish what the mechanism decides. This section reports it
-deciding, as a Flower simulation over a population of ten SuperNodes, under a
+deciding, as a Flower simulation with a population of ten SuperNodes, under a
 requirement naming the purpose \emph{ds-cancer}.
 
 The server's own log of the policy round is the result:
@@ -671,11 +813,11 @@ The server's own log of the policy round is the result:
 \end{quote}
 
 Four things in that are worth drawing out. Membership was decided before the
-first round rather than audited afterwards, and the three exclusions carry a
+first round, and not audited afterwards, and the three exclusions carry a
 reason rather than being silent, which is what makes the decision reviewable.
 The composed capability is reported explicitly, so what the resulting model may
-be used for is a recorded output of the run and not an inference a reader has
-to make later. The duty gate fired: the composed agreement requires
+be used for is written down as an output of the run. A reader does not have to work it
+out later. The duty gate fired: the composed agreement requires
 \emph{obtainConsent}, that obligation cannot be discharged by the run which
 depends on it, and the server refused to train, raising
 \texttt{UnmetPrecondition} before any round began. And one duty, \emph{inform},
@@ -696,12 +838,10 @@ the cleared precondition with its evidence reference, and the one duty still
 owed to all seven.
 
 That last line is the part we would draw a reader's attention to. The artefact
-leaves the system carrying an obligation, in a form a later tool can read,
-rather than carrying a note that an obligation existed.
+leaves the system carrying an obligation, in a form that a later tool can read. It does not simply carry a note saying that an obligation existed.
 
 \paragraph{The two paths agree}
-Section~\ref{sec:eval} runs its sweeps in process rather than over the Flower
-transport, so the two must be shown to compute the same thing. The admitted
+Section~\ref{sec:eval} runs its sweeps in process and not over the Flower transport, so the two must be shown to compute the same thing. The admitted
 consortium of this run is one of the 1023 in the lattice, at the same
 heterogeneity and seed, which makes the comparison a lookup rather than a
 further experiment. The Flower path reaches 0.9930 and the in-process path
@@ -726,24 +866,20 @@ comparison this section is for. Flower builds a separate runtime environment
 for each run, resolved from the project's dependencies, so the Flower path and
 the in-process sweeps can end up on different releases of the tensor library:
 in our case 2.14.1 against 2.5.1, with a third version on the development
-machine. We therefore checked rather than assumed, and all 5115 runs of the
+machine. We therefore checked this instead of assuming it, and all 5115 runs of the
 smaller lattice are bit-identical across two of those versions. The task is a
 small network over synthetic data with every seed fixed, and nothing in it
 reaches an operation whose result moved between those releases. A study on a
 larger model should not expect that and should pin the version.
 
 %% ===========================================================================
-\section{Discussion}
+\section{Discussion and Lessons Learnt}
 \label{sec:discussion}
 
 \subsection{What the Results Establish}
 
 The combinatorial results are the firm ones, and they are firm because they
-never touch a model, a metric or a dataset. That capability is anti-monotone,
-that compatibility is not transitive, that the resulting search is downward
-closed and prunable, and that a volume-ranked group is usually not permitted to
-use its own model: these follow from composing declared terms, and no choice of
-task, model or metric would change them.
+never touch a model, a metric or a dataset. Four of them matter. Capability is anti-monotone. Compatibility is not transitive. The resulting search is downward closed and can therefore be pruned. And a group ranked by data volume is usually not permitted to use its own model. All four follow from composing declared terms, and no choice of task, model or metric would change any of them.
 
 The results about model quality are weaker and we would rather say so than
 imply otherwise. They rest on a synthetic task, on one heterogeneity setting,
@@ -757,7 +893,7 @@ Section~\ref{sec:system} argues is sound because declared restrictions are
 self-penalising. It assumes conditions are expressed in a vocabulary with a
 subsumption hierarchy, since without one composition reports conflicts that do
 not exist. And it assumes the contributors' data is of comparable quality,
-because the mechanism observes conditions rather than data: a contributor
+because the mechanism observes conditions and not data: a contributor
 combining permissive terms with poor data is invisible to it and would have to
 be excluded by other means. The last of these is the strongest assumption in the
 paper and the one we would most want to remove.
@@ -776,12 +912,12 @@ several hundred noisy candidates is biased upward, because the winner is partly
 whichever candidate drew the kindest initialisation. Small groups vary more than
 large ones against a flat ceiling, so the observed maximum is more often a lucky
 small draw than a genuinely better group. Removing that bias needs replicate
-training runs within each federation, which is roughly five times the compute,
+training runs within each federation. That is roughly five times the compute,
 and every figure above comes from such a campaign: 1023 candidates at 20
 federations with five replicates each, 102\,300 training runs, with the
 shortlist chosen from one replicate and scored on the mean of the others.
 
-This changed the result rather than confirming it, which is the more useful
+This changed the result instead of confirming it, which is the more useful
 thing to report. Scored against its own training run the full budget had zero
 regret by construction, the largest-admissible baseline 0.0697 and a random
 admissible pick 0.1230. Scored against held-out replicates those become 0.0009,
@@ -794,15 +930,48 @@ should expect its effect sizes to shrink by a similar factor.
 What remains is a sample of twenty federations for a strongly skewed quantity.
 That is enough to resolve the difference at eight rounds, where the interval is
 narrower than the margin, and not enough to resolve it between three and seven,
-where the intervals reach forty times the margin. We report the latter as
-unresolved rather than as equivalence.
+where the intervals reach forty times the margin. We report those as
+unresolved. We do not call them equivalent.
 
-Finally, ``more contributors is better'' held in our setting and should not be
-expected to hold generally. It was measured under uniform data quality and a
-shared conditional: our task varies which labels each client holds, never what
-the correct answer is. Introduce quality variation or concept shift and
-monotonicity in the training signal breaks, while anti-monotonicity in the
-policy signal does not, since the latter is a property of declared terms.
+Finally, ``more contributors is better'' held in our setting, and it should not
+be expected to hold in general. We measured it under uniform data quality and a
+shared conditional distribution. Our task varies which labels each client
+holds, and never what the correct answer is. Introduce variation in quality, or
+a shift in the concept being learned, and monotonicity in the training signal
+breaks. Anti-monotonicity in the policy signal does not break, because it is a
+property of declared terms and not of data.
+
+\subsection{Threats to Validity}
+
+We group the threats by the kind of claim each one affects.
+
+\emph{Construct validity.} Regret measures the accuracy given up against the
+best candidate that was observed. It is the right quantity for a selection
+procedure, and it is not a measure of how good the model is in absolute terms.
+We also use capability, the set of actions a composed agreement permits, as our
+measure of what a group may do. A richer measure might weight actions by their
+value, and we do not attempt that.
+
+\emph{Internal validity.} Two threats here, and we have addressed both. The
+first is the selection bias discussed above, which replicate runs remove. The
+second is saturation. In federations where nearly every candidate reaches the
+same accuracy, any difference between selection strategies is decided by noise.
+Our evaluation detects saturation and reports it, and 16 of the 20 federations
+are saturated on the frontier measures. That is why we rely on rank
+correlation and pick size for the estimator result.
+
+\emph{External validity.} This is the weakest of the three. The task is
+synthetic, at one heterogeneity setting, over a pool of ten contributors. We
+chose ten because $2^{10}$ subsets can be trained exhaustively and $2^{16}$
+cannot, and an exhaustive lattice is what makes a statement about the best
+candidate a fact. The combinatorial results do not depend on any of this, since
+they never touch a model. The results about model quality do, and we would not
+expect the number eight to carry across to a different task.
+
+\emph{Reliability.} Every number reported here is produced by a script from a
+committed data file, and the figures and tables are generated from the same
+files as the text. We also checked that the lattice reproduces across machines
+and across releases of the tensor library. We report that with the system results above.
 
 \subsection{Scope}
 
@@ -812,8 +981,7 @@ from several governed sources, whether a trusted research environment, a shared
 analysis platform, or a model fine-tuned on pooled records, and nothing in the
 composition rules refers to how training is distributed. Federated learning is
 where the check becomes executable, because the participants' terms are already
-declared to the system that coordinates them, so composition can happen before
-the first round rather than being negotiated out of band. Centralising the data
+declared to the system that coordinates them, so composition can happen before the first round, instead of being negotiated out of band. Centralising the data
 would not avoid the problem either: the resulting model remains a derivative of
 every source, the terms of every source continue to bind it, and the loss of
 capability is unchanged by where the computation happens.
@@ -822,12 +990,7 @@ capability is unchanged by where the computation happens.
 \section{Conclusion}
 \label{sec:conclusion}
 
-Conditions attached to data compose, and they compose in one direction only. We
-have presented a federated learning server that computes the composition before
-it allocates compute, proved that the capability it computes is anti-monotone in
-the contributor set, and used that property to prune the search over candidate
-groups so that the check fits between a node connecting and the first round
-beginning. Because the check is sound and incomplete, we paired it with a second
+Conditions attached to data compose, and they compose in one direction only. We have presented a federated learning server that computes the composition before it allocates any compute. We proved that the capability it computes is anti-monotone in the contributor set. We then used that property to prune the search over candidate groups, so that the whole check fits in the time between a node connecting and the first round beginning. Because the check is sound and incomplete, we paired it with a second
 stage that ranks the admissible candidates by a short exploratory run, and
 measured what that costs against an exhaustively trained lattice of 102\,300
 runs. Around eight of twenty rounds is \emph{equivalent} to training every
@@ -842,13 +1005,11 @@ a practitioner might reasonably choose. The asymmetry that makes the whole
 design work is worth restating: permissions can be taken from a declaration,
 since claiming more restrictions than one has only shrinks what one may do,
 whereas data quality cannot be, because the incentive runs the other way.
-Quality has to be measured, and the policy filter is what makes measuring it
-affordable rather than what makes it unnecessary.
+Quality has to be measured, and the policy filter is what makes measuring it affordable, and not what makes it unnecessary.
 
 Signing the bundle manifest is the open item that would turn a policy-carrying
 model from a description into a mechanism, and removing the uniform-quality
-assumption is the one that would make the second stage interesting rather than
-merely cheap.
+assumption is the one that would make the second stage interesting and not merely cheap.
 
 %% ---------------------------------------------------------------------------
 \section*{Data Availability}

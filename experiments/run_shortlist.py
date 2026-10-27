@@ -53,6 +53,10 @@ FIELDNAMES = [
     # Against the full budget, paired by federation.
     "diff_mean", "diff_lo", "diff_hi", "diff_median",
     "worse", "better", "sign_p", "margin", "verdict",
+    # The two policy-only baselines, repeated on every row because they are
+    # constant for a campaign and a reader of one row should not have to look
+    # elsewhere for what it is being compared against.
+    "baseline_largest", "baseline_random",
 ]
 
 
@@ -325,6 +329,19 @@ def main(argv: list[str] | None = None) -> int:
             ranks.append(order.index(best) + 1)
         diagnostics[r] = (statistics.fmean(taus), statistics.fmean(ranks))
 
+    # Baselines first: the regret of taking the largest admissible set, which
+    # is where every training-free estimator ends up, and of drawing an
+    # admissible candidate at random. Both go into every row.
+    largest, random_pick = [], []
+    for _, score in scored.values():
+        best = max(score.values())
+        biggest = max(len(m) for m in score)
+        largest.append(best - max(v for m, v in score.items()
+                                  if len(m) == biggest))
+        random_pick.append(best - statistics.fmean(score.values()))
+    base_largest = round(statistics.fmean(largest), 6)
+    base_random = round(statistics.fmean(random_pick), 6)
+
     # The paired comparison against the full budget, computed before the rows
     # are written so that it lands in the CSV rather than only on screen.
     full = max(args.rounds)
@@ -356,6 +373,8 @@ def main(argv: list[str] | None = None) -> int:
                 "holdout": all(holdout_flags),
                 "trials": min(trials),
                 "seeds": len(per_seed),
+                "baseline_largest": base_largest,
+                "baseline_random": base_random,
             })
 
     out = Path(args.out)
@@ -375,17 +394,10 @@ def main(argv: list[str] | None = None) -> int:
     # Baselines. Without them a regret of 0.0005 means nothing: the reader
     # cannot tell whether the task is simply flat.
     print("\nBaselines, same federations and the same feasible sets:")
-    largest, random_pick = [], []
-    for _, score in scored.values():
-        best = max(score.values())
-        biggest = max(len(m) for m in score)
-        largest.append(best - max(v for m, v in score.items()
-                                  if len(m) == biggest))
-        random_pick.append(best - statistics.fmean(score.values()))
     print(f"  largest feasible set, where every estimator lands  "
-          f"{statistics.fmean(largest):.4f}")
+          f"{base_largest:.4f}")
     print(f"  a feasible candidate drawn at random               "
-          f"{statistics.fmean(random_pick):.4f}")
+          f"{base_random:.4f}")
 
     # Is a short run as good as the full budget, or merely close to it?
     #

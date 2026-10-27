@@ -39,7 +39,6 @@
 }
 
 %% ----------------------------------------------- conditions on a single asset
-%% CHECK: journal, volume and article number.
 @article{duo,
   title        = {The {Data} {Use} {Ontology} to streamline responsible access to
                   human biomedical datasets},
@@ -47,19 +46,23 @@
                   Boughtwood, Tiffany and Thorogood, Adrian and
                   Alper, Pinar and others},
   journal      = {Cell Genomics},
+  volume       = {1},
+  number       = {2},
+  pages        = {100028},
   year         = {2021},
-  publisher    = {Elsevier}
+  doi          = {10.1016/j.xgen.2021.100028}
 }
 
-%% CHECK: journal and article number.
 @article{adam,
   title        = {Responsible sharing of biomedical data and biospecimens via the
                   {Automatable} {Discovery} and {Access} {Matrix} ({ADA-M})},
   author       = {Woolley, J. Patrick and Kirby, Emily and Leslie, Josh and
                   Jeanson, Francis and Cabili, Moran N. and others},
   journal      = {npj Genomic Medicine},
+  volume       = {3},
+  pages        = {17},
   year         = {2018},
-  publisher    = {Nature Publishing Group}
+  doi          = {10.1038/s41525-018-0057-4}
 }
 
 @article{datasheets,
@@ -103,16 +106,13 @@
 }
 
 %% --------------------------------------------- licences that bind derivatives
-%% CHECK: the ISO number and year are believed correct but worth confirming.
 @misc{spdx,
-  title        = {{ISO/IEC} 5962:2021 --- {Information} technology ---
-                  {SPDX} {Specification} {V2.2.1}},
-  author       = {{International Organization for Standardization}},
-  year         = {2021},
-  url          = {https://spdx.dev/}
+  title        = {{SPDX}: {Software} {Package} {Data} {Exchange}},
+  author       = {{Linux Foundation}},
+  howpublished = {\url{https://spdx.dev/}},
+  note         = {Accessed 27 October 2026. Standardised as ISO/IEC 5962}
 }
 
-%% CHECK: exact venue and page numbers.
 @inproceedings{openrail,
   title        = {Behavioral Use Licensing for Responsible {AI}},
   author       = {Contractor, Danish and McDuff, Daniel and Haines, Julia Katherine
@@ -120,27 +120,24 @@
                   Vincent, Nicholas and Li, Hanlin},
   booktitle    = {Proceedings of the 2022 ACM Conference on Fairness,
                   Accountability, and Transparency (FAccT)},
-  year         = {2022}
+  year         = {2022},
+  doi          = {10.1145/3531146.3533143}
 }
 
-%% CHECK: confirm the current CycloneDX version and the preferred citation.
 @misc{cyclonedx,
   title        = {{CycloneDX} {Bill} of {Materials} {Specification}},
   author       = {{OWASP Foundation}},
-  year         = {2024},
-  url          = {https://cyclonedx.org/},
-  note         = {Includes machine learning bill of materials (ML-BOM)}
+  howpublished = {\url{https://cyclonedx.org/}},
+  note         = {Accessed 27 October 2026. Defines a machine learning bill of materials}
 }
 
-%% CHECK: confirm the current specification version.
 @misc{c2pa,
-  title        = {{C2PA} Technical Specification},
+  title        = {{C2PA} {Technical} {Specification}},
   author       = {{Coalition for Content Provenance and Authenticity}},
-  year         = {2024},
-  url          = {https://c2pa.org/specifications/}
+  howpublished = {\url{https://c2pa.org/specifications/}},
+  note         = {Accessed 27 October 2026}
 }
 
-%% CHECK: venue. This appeared as a preprint and later in a peer-reviewed venue.
 @misc{provenance,
   title        = {The Data Provenance Initiative: A Large Scale Audit of Dataset
                   Licensing and Attribution in {AI}},
@@ -148,7 +145,8 @@
                   Obeng-Marnu, Naana and Sileo, Damien and Brannon, William and
                   others},
   year         = {2023},
-  url          = {https://www.dataprovenance.org/}
+  howpublished = {\url{https://www.dataprovenance.org/}},
+  note         = {Preprint. Accessed 27 October 2026}
 }
 
 %% ------------------------------------------------ usage control, data spaces
@@ -159,16 +157,17 @@
   volume       = {7},
   number       = {1},
   pages        = {128--174},
-  year         = {2004}
+  year         = {2004},
+  month        = feb,
+  doi          = {10.1145/984334.984339}
 }
 
-%% CHECK: the IDS reference architecture is versioned; confirm the edition.
-@techreport{ids,
-  title        = {{International} {Data} {Spaces} Reference Architecture Model},
+@misc{ids,
+  title        = {{International} {Data} {Spaces} Reference Architecture
+                  Model},
   author       = {{International Data Spaces Association}},
-  institution  = {IDSA},
-  year         = {2022},
-  url          = {https://internationaldataspaces.org/}
+  howpublished = {\url{https://internationaldataspaces.org/}},
+  note         = {Accessed 27 October 2026}
 }
 
 %% ---------------------------------------------------- AI opt-out, regulation
@@ -227,11 +226,12 @@
   author       = {Ghorbani, Amirata and Zou, James},
   booktitle    = {Proceedings of the 36th International Conference on Machine
                   Learning (ICML)},
+  series       = {Proceedings of Machine Learning Research},
+  volume       = {97},
   pages        = {2242--2251},
   year         = {2019}
 }
 
-%% CHECK: page numbers.
 @inproceedings{oort,
   title        = {Oort: Efficient Federated Learning via Guided Participant
                   Selection},
