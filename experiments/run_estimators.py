@@ -111,21 +111,42 @@ def load_groundtruth(
     Keyed by seed rather than collapsed into a list, because each seed is a
     different federation and the evaluation must never mix them.
 
+    Replicates within a federation are averaged. A file with a `trial` column
+    holds several training runs of the same federation, and this function used
+    to key only on (members, seed), so the last replicate read silently won and
+    the other four were discarded -- an estimator would then have been scored
+    against one arbitrary training run while the shortlist results next to it
+    were scored against a replicate mean. Averaging is the right collapse here
+    because an estimator does not train, so there is no selection replicate to
+    hold out: it predicts a federation's utility, and the best available
+    estimate of that is the mean over replicates.
+
     The settings come back rather than being assumed, because the estimators have
     to be built at the same heterogeneity the models were trained at. Scoring an
     estimator built at alpha 1.0 against models trained at alpha 0.3 compares two
     different worlds, and nothing about the output would look wrong.
     """
-    truth: dict[tuple[int, ...], dict[int, float]] = {}
+    seen: dict[tuple[int, ...], dict[int, list[float]]] = {}
     settings: dict[str, set] = {"alpha": set(), "rounds": set()}
     with path.open(encoding="utf-8") as fh:
         for row in csv.DictReader(fh):
             members = tuple(int(m) for m in row["members"].split("-"))
-            truth.setdefault(members, {})[int(row["seed"])] = float(row["accuracy"])
+            seen.setdefault(members, {}).setdefault(int(row["seed"]), []).append(
+                float(row["accuracy"])
+            )
             if row.get("alpha"):
                 settings["alpha"].add(float(row["alpha"]))
             if row.get("rounds"):
                 settings["rounds"].add(int(row["rounds"]))
+
+    truth = {
+        members: {seed: sum(v) / len(v) for seed, v in by_seed.items()}
+        for members, by_seed in seen.items()
+    }
+    replicates = {len(v) for by_seed in seen.values() for v in by_seed.values()}
+    if replicates and max(replicates) > 1:
+        print(f"  averaging over {min(replicates)}-{max(replicates)} "
+              f"replicate(s) per federation")
     for key, values in settings.items():
         if len(values) > 1:
             raise ValueError(
