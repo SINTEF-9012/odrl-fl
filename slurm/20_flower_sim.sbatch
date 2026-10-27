@@ -71,20 +71,34 @@ echo "Federation: population of $ODRL_POOL nodes, alpha $ODRL_ALPHA," \
 echo "Ray tmp:    $RAY_TMPDIR"
 echo ""
 
+# --stream is not optional. Without it `flwr run` only *submits* the run and
+# returns, the job then ends, Slurm tears down the SuperLink it started, and the
+# federation dies before training a round -- while the job reports exit 0 after
+# nine seconds. --stream follows the run and blocks until it finishes.
+#
 # `require-purpose` is set deliberately. Left empty, the request names only
 # actions, which nearly every contributor grants, so admission excludes almost
 # nobody and the run demonstrates nothing. A real purpose is what makes the
 # policy gate bite.
-flwr run . local-sim --run-config \
+flwr run . local-sim --stream --run-config \
     "num-server-rounds=$ODRL_ROUNDS alpha=$ODRL_ALPHA seed=0 require-purpose='ds-cancer' recheck-consent=true"
 STATUS=$?
 
 echo ""
 echo "***** DONE (exit $STATUS) *****"
 date '+%F %H:%M:%S'
-if [ "$STATUS" -eq 0 ]; then
-    echo ""
-    echo "Bundle written under artifacts/. Next, check the two paths agree:"
-    echo "  python experiments/run_fedavg.py --contributors <the admitted set>"
+
+# Exit 0 from `flwr run` says the run was accepted, not that it trained. Check
+# for the artefact it was supposed to produce, because an unconditional success
+# message here already once claimed a bundle that did not exist.
+bundle="$(find artifacts -name 'manifest*.json' -newermt '-1 day' 2>/dev/null | head -1)"
+if [ -n "$bundle" ]; then
+    echo "Bundle: $bundle"
+    echo "Next, check the two paths agree on the admitted set:"
+    echo "  python experiments/run_fedavg.py --contributors <admitted>"
+elif [ "$STATUS" -eq 0 ]; then
+    echo "WARNING: the run was accepted but no bundle was written." >&2
+    echo "  Either training did not finish, or bundle-dir points elsewhere." >&2
+    STATUS=1
 fi
 exit $STATUS

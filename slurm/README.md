@@ -132,12 +132,23 @@ reports which consortium sizes are short. That check matters more than it
 looks: a maximum taken over a lattice with holes is not the maximum, and
 nothing downstream could tell.
 
-To see what happened to a job that has already left the queue, `squeue` is no
-use — use `sacct`:
+To see what happened to a job that has already left the queue: `squeue` only
+shows queued and running jobs, and `sacct` reports "Slurm accounting storage is
+disabled" on this cluster, so the logs are the only record. Every job here ends
+with a `***** DONE (exit N, M rows) *****` banner for exactly that reason — a
+log that stops without one was killed rather than finished.
 
 ```bash
-sacct -j <jobid> --format=JobID%14,State,ExitCode,Elapsed
+grep -h '\*\*\*\*\* DONE' ~/logs/slurm/odrl-gt_*.out | sort | uniq -c
 ```
+
+```bash
+wc -l results/shards/*.csv | tail -1
+```
+
+Those two answer what state the campaign is in: how many tasks finished and
+with what exit code, and how many rows reached disk. A task that failed early
+leaves a log whose last lines name the reason.
 
 ## Changing the array size
 
