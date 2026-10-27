@@ -12,6 +12,20 @@ requires-python = ">=3.11"
 
 dependencies = [
     "flwr[simulation]==1.33.0",
+    # Deliberately unpinned, having checked that it does not matter. Flower
+    # builds its own runtime environment for a run with `uv sync` from these
+    # dependencies, so the Flower path has trained under 2.14.1 while the
+    # in-process sweeps used 2.5.1 on the cluster and 2.13.0 on a Windows
+    # development machine -- three versions, which looked like it would make
+    # the two paths incomparable.
+    #
+    # It does not. All 5115 rows of `results/groundtruth.csv`, trained here
+    # under 2.13.0, are bit-identical to the trial=0 seeds 0-4 rows of the
+    # cluster's lattice trained under 2.5.1. The task is a small MLP over
+    # synthetic data with every seed fixed, and nothing in it reaches an
+    # operation whose result moved between those releases. Pinning an old
+    # version would therefore buy nothing and would break installs on Python
+    # 3.13, where no 2.5.1 wheel exists.
     "torch",
     "numpy",
 ]

@@ -80,25 +80,40 @@ echo ""
 # actions, which nearly every contributor grants, so admission excludes almost
 # nobody and the run demonstrates nothing. A real purpose is what makes the
 # policy gate bite.
+# `duty-evidence` is not optional either, and the reason is the mechanism
+# working rather than failing. Composition accumulates duties, and
+# `obtainConsent` is a precondition: it cannot be discharged by the run that
+# depends on it, so the server refuses to start without an assertion that
+# somebody discharged it out of band. Run 3074 did exactly that and stopped
+# with UnmetPrecondition before training a round. To get past the gate the
+# assertion has to be made, which is the point -- nothing validates the
+# reference, but a person has to put it there and it is recorded in the bundle.
+EVIDENCE="${ODRL_EVIDENCE:-obtainConsent=IRB-2026-0142}"
+
 flwr run . local-sim --stream --run-config \
-    "num-server-rounds=$ODRL_ROUNDS alpha=$ODRL_ALPHA seed=0 require-purpose='ds-cancer' recheck-consent=true"
+    "num-server-rounds=$ODRL_ROUNDS alpha=$ODRL_ALPHA seed=0 require-purpose='ds-cancer' recheck-consent=true duty-evidence='$EVIDENCE'"
 STATUS=$?
+
+# `flwr run --stream` returns 0 even when the simulation it streamed raised:
+# run 3074 printed "Exit Code: 700" and a traceback, and this script still
+# reported exit 0. So the artefact is checked first and the banner reports what
+# the check found, rather than the banner going out before anything is known.
+bundle="$(find artifacts -name 'manifest*.json' -newermt '-1 day' 2>/dev/null | head -1)"
+if [ -z "$bundle" ] && [ "$STATUS" -eq 0 ]; then
+    echo "" >&2
+    echo "WARNING: flwr exited 0 but no bundle was written, so the run did" >&2
+    echo "  not finish training. Look above for 'Exit Code:' and a" >&2
+    echo "  traceback -- flwr reports a failed simulation in its output" >&2
+    echo "  rather than in its exit status." >&2
+    STATUS=1
+fi
 
 echo ""
 echo "***** DONE (exit $STATUS) *****"
 date '+%F %H:%M:%S'
-
-# Exit 0 from `flwr run` says the run was accepted, not that it trained. Check
-# for the artefact it was supposed to produce, because an unconditional success
-# message here already once claimed a bundle that did not exist.
-bundle="$(find artifacts -name 'manifest*.json' -newermt '-1 day' 2>/dev/null | head -1)"
 if [ -n "$bundle" ]; then
     echo "Bundle: $bundle"
     echo "Next, check the two paths agree on the admitted set:"
     echo "  python experiments/run_fedavg.py --contributors <admitted>"
-elif [ "$STATUS" -eq 0 ]; then
-    echo "WARNING: the run was accepted but no bundle was written." >&2
-    echo "  Either training did not finish, or bundle-dir points elsewhere." >&2
-    STATUS=1
 fi
 exit $STATUS
