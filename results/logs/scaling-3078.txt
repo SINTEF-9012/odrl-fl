@@ -1,0 +1,43 @@
+Job 3078, 27 October 2026. Flower simulation, require-purpose=ds-cancer,
+one training round per population. COST lines are produced by
+odrl_fl.server_app.report_cost. The 32-node run was cancelled at its
+four-hour limit; see Equation 1 in the paper for why.
+
+Populations: 4 8 16 24 32 (ceiling 32)
+--- population 4
+policy round: 4 nodes declared
+admitted 2 of 4 declared: [17256132223648101217, 1535771077462266916]
+COST nodes=4 collect_s=16.3884 admit_s=0.0042
+COST declaration_bytes_mean=2013.8 max=2904
+COST evaluated=5 generated=5 exhaustive=15 reduction=0.666667
+Strategy execution finished in 9.69s
+--- asked for 4, federation reports 4, declared 4
+--- population 4 finished, exit 0
+--- population 8
+policy round: 8 nodes declared
+admitted 5 of 8 declared: [4039788920723084759, 13993984918247582406, 14859375188928166183, 12990940213316061065, 7871199210934959932]
+COST nodes=8 collect_s=16.3303 admit_s=0.0146
+COST declaration_bytes_mean=1737.0 max=2929
+COST evaluated=34 generated=34 exhaustive=255 reduction=0.866667
+Strategy execution finished in 9.79s
+--- asked for 8, federation reports 8, declared 8
+--- population 8 finished, exit 0
+--- population 16
+policy round: 16 nodes declared
+admitted 12 of 16 declared: [14328965758136744600, 2854871815670143583, 2770212570458651417, 3129044796254192968, 3747949752957382693, 3018166225891990536, 15180025914753833936, 8539970117016656078, 8667268532796337223, 535983711753432276, 691081304547964059, 239804804084974086]
+COST nodes=16 collect_s=14.2188 admit_s=3.2047
+COST declaration_bytes_mean=1361.2 max=2929
+COST evaluated=4099 generated=4099 exhaustive=65535 reduction=0.937453
+Strategy execution finished in 5.08s
+--- asked for 16, federation reports 16, declared 16
+--- population 16 finished, exit 0
+--- population 24
+policy round: 24 nodes declared
+admitted 18 of 24 declared: [7884794755496396444, 3565348300583031406, 4522947106974432140, 3726549661626513709, 5970739764857552852, 7488822445594620185, 15971449475845603030, 11770500801548740192, 7426686006373068962, 14749122501163158776, 7086396066273171216, 15605327136082784754, 15880008033523180136, 1148223485597479439, 860325357817978241, 13627247087811848254, 4385633870628086578, 9931362196850254301]
+COST nodes=24 collect_s=14.0563 admit_s=326.3664
+COST declaration_bytes_mean=1348.2 max=2929
+COST evaluated=262149 generated=262149 exhaustive=16777215 reduction=0.984375
+Strategy execution finished in 5.40s
+--- asked for 24, federation reports 24, declared 24
+--- population 24 finished, exit 0
+--- population 32

@@ -49,8 +49,14 @@ export RAY_TMPDIR="${SLURM_TMPDIR:-${TMPDIR:-/tmp}}/ray-${SLURM_JOB_ID:-$$}"
 mkdir -p "$RAY_TMPDIR"
 trap 'rm -rf "$RAY_TMPDIR"' EXIT
 
-SIZES="${ODRL_SCALE_SIZES:-4 8 16 24 32}"
-MAX="${ODRL_SCALE_MAX:-32}"
+# 32 is left out of the default. Job 3078 reached 24 contributors in 326s
+# and was then cancelled at its four-hour limit on 32, which is what the
+# cost model predicts: at the same admission rate a is about 24, so the
+# search is 16.8 million compositions, and at the measured 803 per second
+# that is 5.8 hours. Add it back with ODRL_SCALE_SIZES if you also raise
+# --time, but the result is already known.
+SIZES="${ODRL_SCALE_SIZES:-4 8 16 24}"
+MAX="${ODRL_SCALE_MAX:-24}"
 
 echo ""
 echo "Populations: $SIZES (ceiling $MAX)"

@@ -645,49 +645,77 @@ estimated.
 \caption{Candidates examined before admission is decided.}
 \label{tab:pruning}
 \centering
-\begin{tabular}{lrrrr}
+\begin{tabular}{lrrrrr}
 \toprule
-Requirement & Pool & Subsets & Examined & Time \\
+Requirement & $n$ & $a$ & Subsets & Examined & Time \\
 \midrule
-actions only & 14 & 16\,383 & 7\,136 & 5.2\,s \\
-actions only & 16 & 65\,535 & 25\,634 & 23.3\,s \\
-actions only & 17 & 131\,071 & 80\,005 & 86.1\,s \\
+\multicolumn{6}{l}{\emph{on the Flower server, instrumented}} \\
+\emph{ds-cancer} & 4 & 2 & 15 & 5 & 0.004\,s \\
+\emph{ds-cancer} & 8 & 5 & 255 & 34 & 0.015\,s \\
+\emph{ds-cancer} & 16 & 12 & 65\,535 & 4\,099 & 3.2\,s \\
+\emph{ds-cancer} & 24 & 18 & 16\,777\,215 & 262\,149 & 326\,s \\
+\emph{ds-cancer} & 32 & --- & $4{\times}10^{9}$ & --- & $>$4\,h \\
 \midrule
-\emph{ds-cancer} & 16 & 65\,535 & 10\,652 & 8.9\,s \\
-\emph{ds-cancer} & 18 & 262\,143 & 73\,730 & 82.6\,s \\
-\midrule
-\emph{research} & 16 & 65\,535 & 889 & 0.5\,s \\
-\emph{research} & 19 & 524\,287 & 2\,772 & 1.8\,s \\
-\emph{research} & 22 & 4\,194\,303 & 7\,586 & 8.1\,s \\
+\multicolumn{6}{l}{\emph{offline, five corpora each}} \\
+actions only & 16 & 13.8 & 65\,535 & 25\,634 & 23.3\,s \\
+actions only & 17 & 15.5 & 131\,071 & 80\,005 & 86.1\,s \\
+\emph{research} & 16 & 9.0 & 65\,535 & 889 & 0.5\,s \\
+\emph{research} & 22 & 12.4 & 4\,194\,303 & 7\,586 & 8.1\,s \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The answer depends entirely on the requirement, and the paper would be wrong to
-claim otherwise. Under the broadest requirement, \emph{research}, the search
-examines 7\,586 of 4.19 million subsets at a pool of 22, and it does so in
-8.1\,s. The fraction examined also \emph{falls} as the pool grows, from
-1.4\% at 16 contributors to 0.18\% at 22. That is the shape a scalability claim
-needs: the space grows by a factor of 64 over those six steps and the work
-grows by a factor of 8.5.
+The answer depends on the requirement, and in a way that has an exact form. The
+instrumented server records the candidates it evaluated on every run, and over
+four populations those counts are reproduced exactly by
+\begin{equation}
+\label{eq:cost}
+\textrm{evaluated} \;=\; 2^{a} + (n - a) - 1 ,
+\end{equation}
+where $n$ is the number of contributors that declared and $a$ the number
+admitted. Table~\ref{tab:pruning} gives the four measurements. The search
+evaluates every subset of the admissible set, plus one probe for each
+contributor that failed on its own terms, and nothing else.
 
-Under the narrowest requirement, which names actions and no purpose, there is
-very little to prune. Nearly every contributor grants \emph{use} and
-\emph{aggregate}, so few candidates are eliminated, and the search gives up at
-17 contributors after 86\,s. The growth there is simply exponential.
+Equation~\ref{eq:cost} says what the pruning does and does not achieve. It does
+not make an exponential problem polynomial. It replaces the exponent: the cost
+is exponential in the size of the \emph{admissible} set and not in the size of
+the population. A requirement that admits everybody gives $a = n$ and saves
+nothing at all. A requirement that admits few contributors is cheap however
+large the federation becomes.
 
-Two readings follow, and we prefer the second. The first is that the method has
-a scale limit, which it does. The second is that the pruning pays for itself
-exactly when the federation's purpose is specific, and a federation whose
-requirement names no purpose at all is one where the policy check has little to
-decide in the first place. A consortium assembled to study one disease is both
-the realistic case and the case the search handles best.
+This explains the three regimes of the offline sweep without any further
+appeal to intuition. Under \emph{research}, which is the broadest purpose and
+therefore the hardest to satisfy, around nine contributors are admissible out
+of sixteen, and the search examines 889 of 65\,535 subsets in half a second; at
+a pool of 22 it examines 7\,586 of 4.19 million in 8.1\,s. Under a requirement
+naming actions and no purpose, nearly everybody grants \emph{use} and
+\emph{aggregate}, so $a$ approaches $n$ and the search gives up at 17
+contributors after 86\,s.
 
-We should also note a limitation of the table. The two rows where the search
-exceeded our time budget, at 17 and 18 contributors, are averages over two
-generated corpora instead of five, because the sweep stops a requirement once
-one search runs long. Their times are therefore less stable than the others,
-and we draw no conclusion from the exact percentages in those rows.
+It also predicts where the method stops, which is a more useful thing than
+observing it. At 24 contributors the server admitted 18 and evaluated 262\,149
+candidates in 326\,s, a rate of 803 compositions per second that agrees with
+the 893 per second measured offline. Extrapolating the same admission rate to a
+population of 32 gives $a \approx 24$, hence 16.8 million compositions and
+about 5.8 hours. Our 32-node run was cancelled at its four-hour limit, which is
+what Equation~\ref{eq:cost} says should have happened.
+
+We draw the practical conclusion, and not the pessimistic one. The policy check
+is affordable exactly when the federation's purpose is specific, and a
+federation whose requirement names no purpose is one where the check has little
+to decide. A consortium assembled to study one disease is both the realistic
+case and the case the search handles best. Where it is not affordable, the
+server knows so in advance: $a$ is the count of contributors that pass the
+singleton test, which costs $n$ compositions, so Equation~\ref{eq:cost} can be
+evaluated before the expensive stage begins.
+
+Two limitations of the table. The offline rows at 17 and 18 contributors
+average two generated corpora instead of five, because the sweep stops a
+requirement once a single search runs long, so their times are less stable than
+the others. And Equation~\ref{eq:cost} is an exact fit to four measurements,
+not a proof. It follows naturally from a downward-closed search over an
+admissible set, and we state it as a measured regularity.
 
 \paragraph{The cost of ignoring policy}
 
@@ -899,6 +927,24 @@ owed to all seven.
 
 That last line is the part we would draw a reader's attention to. The artefact
 leaves the system carrying an obligation, in a form that a later tool can read. It does not simply carry a note saying that an obligation existed.
+
+\paragraph{Where the policy round spends its time}
+The instrumented server separates two costs that are easy to conflate:
+collecting the declarations, which is communication, and deciding admission,
+which is computation. They behave completely differently.
+
+Deciding admission grows as Equation~\ref{eq:cost} says, from 4\,ms at four
+contributors to 326\,s at twenty-four. Collecting the declarations does not
+grow at all. It takes 16.4\,s at four contributors and 14.1\,s at
+twenty-four, so it is dominated by fixed start-up cost in the simulation
+backend and not by the number of nodes being asked. A declaration is about
+1.4\,kB, with the largest we observed at 2.9\,kB, so the whole policy round
+moves roughly 32\,kB at a population of twenty-four.
+
+The cost of the policy round is therefore computational and not
+communicational. That is the opposite of what one might assume about a step
+whose first action is to ask every node a question, and it says where to look
+if the round ever needs to be made faster.
 
 \paragraph{The two paths agree}
 Section~\ref{sec:eval} runs its sweeps in process and not over the Flower transport, so the two must be shown to compute the same thing. The admitted
