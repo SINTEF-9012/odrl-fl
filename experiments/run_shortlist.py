@@ -28,7 +28,7 @@ import random
 import statistics
 import sys
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -41,10 +41,18 @@ RESULTS = Path(__file__).resolve().parent.parent / "results"
 TRUTH = RESULTS / "groundtruth.csv"
 OUT = RESULTS / "shortlist.csv"
 
+#: The paired comparison against the full budget is written here and not only
+#: printed. The paper's central claim is a row of this file, and a claim that
+#: lives in terminal output can disagree with the repository without anyone
+#: noticing -- the same reason figures here are rendered from committed CSVs
+#: rather than from a fresh run.
 FIELDNAMES = [
     "explore_rounds", "k", "regret", "regret_lo", "regret_hi",
     "fraction", "rounds", "tau", "rank_of_best", "n_feasible",
     "holdout", "trials", "seeds",
+    # Against the full budget, paired by federation.
+    "diff_mean", "diff_lo", "diff_hi", "diff_median",
+    "worse", "better", "sign_p", "margin", "verdict",
 ]
 
 
@@ -152,6 +160,71 @@ def bootstrap_mean(
     return (means[int(0.025 * draws)], means[int(0.975 * draws)])
 
 
+def paired_against_full(
+    per_seed: Mapping[int, Sequence],
+    rounds: Sequence[int],
+    shortlist_sizes: Sequence[int],
+    full: int,
+) -> dict[tuple[int, int], dict]:
+    """Compare every exploratory budget against the full one, federation by
+    federation.
+
+    The three verdicts are not interchangeable and the distinction is the whole
+    point. `worse` means the interval on the mean difference excludes zero.
+    `equivalent` means it lies entirely inside plus or minus the full budget's
+    own regret, so the shorter budget differs from the full one by less than
+    the full one differs from the truth. `cannot tell` means it contains zero
+    but reaches past that margin, which is a statement about the study's power
+    and not about the budget -- at seven rounds the interval reaches forty
+    times the margin, and calling that equivalence would be the usual abuse of
+    a non-significant result.
+    """
+    out: dict[tuple[int, int], dict] = {}
+    for k in shortlist_sizes:
+        baseline = {}
+        for seed, points in per_seed.items():
+            match = [p.regret for p in points
+                     if p.explore_rounds == full and p.k == k]
+            if match:
+                baseline[seed] = match[0]
+        if not baseline:
+            continue
+        margin = statistics.fmean(baseline.values())
+
+        for r in rounds:
+            diffs = []
+            for seed, base in baseline.items():
+                match = [p.regret for p in per_seed[seed]
+                         if p.explore_rounds == r and p.k == k]
+                if match:
+                    diffs.append(match[0] - base)
+            if not diffs:
+                continue
+            lo, hi = bootstrap_mean(diffs)
+            worse = sum(1 for d in diffs if d > 0)
+            better = sum(1 for d in diffs if d < 0)
+            if r == full:
+                verdict = "baseline"
+            elif lo > 0 or hi < 0:
+                verdict = "worse"
+            elif -margin <= lo and hi <= margin:
+                verdict = "equivalent"
+            else:
+                verdict = "cannot tell"
+            out[(r, k)] = {
+                "diff_mean": round(statistics.fmean(diffs), 6),
+                "diff_lo": round(lo, 6),
+                "diff_hi": round(hi, 6),
+                "diff_median": round(statistics.median(diffs), 6),
+                "worse": worse,
+                "better": better,
+                "sign_p": round(sign_test(worse, better), 4),
+                "margin": round(margin, 6),
+                "verdict": verdict,
+            }
+    return out
+
+
 def split_replicates(
     runs: dict[tuple[int, ...], list[list[float]]],
 ) -> tuple[dict, dict, bool]:
@@ -252,6 +325,11 @@ def main(argv: list[str] | None = None) -> int:
             ranks.append(order.index(best) + 1)
         diagnostics[r] = (statistics.fmean(taus), statistics.fmean(ranks))
 
+    # The paired comparison against the full budget, computed before the rows
+    # are written so that it lands in the CSV rather than only on screen.
+    full = max(args.rounds)
+    paired = paired_against_full(per_seed, args.rounds, args.k, full)
+
     rows = []
     for r in args.rounds:
         for k in args.k:
@@ -264,6 +342,7 @@ def main(argv: list[str] | None = None) -> int:
             regrets = [p.regret for p in points]
             tau, rank = diagnostics[r]
             rows.append({
+                **paired.get((r, k), {}),
                 "explore_rounds": r,
                 "k": k,
                 "regret": round(statistics.fmean(regrets), 6),
@@ -325,46 +404,24 @@ def main(argv: list[str] | None = None) -> int:
     print(f"{'R':>3} {'k':>3} {'mean diff':>10} {'95% interval':>20} "
           f"{'median':>9} {'w/b':>7} {'sign p':>7} {'cost':>6} {'verdict':>12}")
     for k in args.k:
-        baseline = {
-            seed: next(p.regret for p in per_seed[seed]
-                       if p.explore_rounds == full and p.k == k)
-            for seed in per_seed
-        }
-        # The equivalence margin is the full budget's own mean regret. An
-        # interval lying entirely inside +-margin says the shorter budget
-        # differs from the full one by less than the full one differs from the
-        # truth, which is as strong a statement of equivalence as this design
-        # can support. An interval that merely contains zero says nothing: at
-        # seven rounds it reaches to +0.036, forty times the margin, so "not
-        # significant" there means the study cannot tell rather than that the
-        # budgets agree.
-        margin = statistics.fmean(baseline.values())
         for r in args.rounds:
-            if r == full:
+            row = next((x for x in rows
+                        if x["explore_rounds"] == r and x["k"] == k), None)
+            if row is None or row.get("verdict") in (None, "baseline"):
                 continue
-            diffs = [
-                next(p.regret for p in per_seed[seed]
-                     if p.explore_rounds == r and p.k == k) - baseline[seed]
-                for seed in per_seed
-            ]
-            worse = sum(1 for d in diffs if d > 0)
-            better = sum(1 for d in diffs if d < 0)
-            lo, hi = bootstrap_mean(diffs)
-            if lo > 0 or hi < 0:
-                mark, verdict = "*", "worse"
-            elif -margin <= lo and hi <= margin:
-                mark, verdict = " ", "equivalent"
-            else:
-                mark, verdict = " ", "cannot tell"
-            cost = next(p.fraction for p in per_seed[next(iter(per_seed))]
-                        if p.explore_rounds == r and p.k == k)
-            print(f"{r:>3} {k:>3} {statistics.fmean(diffs):>+10.5f} "
-                  f"[{lo:>+8.5f},{hi:>+8.5f}]{mark} "
-                  f"{statistics.median(diffs):>+9.5f} "
-                  f"{worse:>3}/{better:<3} {sign_test(worse, better):>7.3f} "
-                  f"{cost:>5.1%} {verdict:>12}")
-        print(f"      equivalence margin for k={k}: the full budget's own "
-              f"regret, {margin:.5f}\n")
+            mark = "*" if row["verdict"] == "worse" else " "
+            print(f"{r:>3} {k:>3} {row['diff_mean']:>+10.5f} "
+                  f"[{row['diff_lo']:>+8.5f},{row['diff_hi']:>+8.5f}]{mark} "
+                  f"{row['diff_median']:>+9.5f} "
+                  f"{row['worse']:>3}/{row['better']:<3} "
+                  f"{row['sign_p']:>7.3f} {row['fraction']:>5.1%} "
+                  f"{row['verdict']:>12}")
+        margin = next((x["margin"] for x in rows if x["k"] == k
+                       and x.get("margin") is not None), None)
+        if margin is not None:
+            print(f"      equivalence margin for k={k}: the full budget's own "
+                  f"regret, {margin:.5f}")
+            print()
     print("* the interval on the mean excludes zero: measurably worse.")
     print("'equivalent' means the whole interval lies inside +-margin.")
     print("'cannot tell' means it contains zero but reaches past the margin,")
