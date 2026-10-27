@@ -69,8 +69,13 @@ for n in $SIZES; do
     out="$RAY_TMPDIR/run-$n.log"
     # The COST lines this prints are the result; see report_cost in
     # odrl_fl/server_app.py.
+    # `num-supernodes=N`, flat and with no `options.` prefix. The prefix is
+    # how the key is written in pyproject.toml, and `--federation-config` does
+    # not take it: flwr maps the key straight onto a SimulationConfig field, so
+    # `options.num-supernodes` becomes `options.num_supernodes` and is
+    # rejected. That is what failed job 3076 at every population.
     flwr run . local-sim --stream \
-        --federation-config "options.num-supernodes=$n" \
+        --federation-config "num-supernodes=$n" \
         --run-config \
         "num-server-rounds=1 alpha=$ODRL_ALPHA seed=0 require-purpose='ds-cancer' recheck-consent=false duty-evidence='obtainConsent=IRB-2026-0142'" \
         2>&1 | tee "$out"
@@ -86,8 +91,16 @@ for n in $SIZES; do
     declared="$(grep -oE 'policy round: [0-9]+ nodes declared' "$out" \
                 | grep -oE '[0-9]+' | head -1)"
     echo "--- asked for $n, federation reports ${got:-?}, declared ${declared:-?}"
-    if [ -n "$got" ] && [ "$got" != "$n" ]; then
-        echo "ERROR: the population override was ignored. Try instead:" >&2
+    if [ -z "$got" ]; then
+        echo "ERROR: flwr never reported a federation size, so the run did" >&2
+        echo "  not start. The CLI error is in the box above. Stopping, as" >&2
+        echo "  the remaining populations would fail the same way." >&2
+        STATUS=1
+        break
+    fi
+    if [ "$got" != "$n" ]; then
+        echo "ERROR: asked for $n SuperNodes and got $got, so the override" >&2
+        echo "  was accepted but ignored. Set it permanently instead:" >&2
         echo "  flwr federation simulation-config local-sim --num-supernodes $n" >&2
         STATUS=1
         break
