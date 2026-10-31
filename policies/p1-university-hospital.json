@@ -1,0 +1,59 @@
+{
+  "@context": "http://www.w3.org/ns/odrl.jsonld",
+  "@type": "Offer",
+  "uid": "urn:policy:p1-university-hospital",
+  "assigner": "urn:party:university-hospital-a",
+  "target": "urn:asset:imaging-cohort-a",
+  "permission": [
+    {
+      "action": "use",
+      "constraint": [
+        {
+          "leftOperand": "purpose",
+          "operator": "eq",
+          "rightOperand": "research"
+        },
+        {
+          "leftOperand": "spatial",
+          "operator": "eq",
+          "rightOperand": "EU"
+        }
+      ]
+    },
+    {
+      "action": "aggregate",
+      "constraint": [
+        {
+          "leftOperand": "purpose",
+          "operator": "eq",
+          "rightOperand": "research"
+        }
+      ]
+    },
+    {
+      "action": "derive",
+      "constraint": [
+        {
+          "leftOperand": "purpose",
+          "operator": "eq",
+          "rightOperand": "research"
+        }
+      ]
+    },
+    {
+      "action": "distribute",
+      "constraint": [
+        {
+          "leftOperand": "purpose",
+          "operator": "eq",
+          "rightOperand": "research"
+        }
+      ]
+    }
+  ],
+  "obligation": [
+    {
+      "action": "attribute"
+    }
+  ]
+}

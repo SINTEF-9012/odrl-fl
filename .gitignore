@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+
+# The GDC cohort is fetched on demand, never vendored -- it is not ours to
+# redistribute. See odrl_fl/tcga.py.
+data/
+
+# Results are ignored by default, but the small ones that back a claim in the
+# README are kept: the CSVs an experiment produced and the figures rendered
+# from them, ~90 KB in total. A repository whose argument is that claims should
+# be checkable has to ship the numbers behind its own. Anything larger or
+# regenerable stays out.
+results/*
+!results/*.csv
+!results/figures/
+results/figures/*
+!results/figures/*.svg
+# The cluster campaign is the exception to the exception. Each array task
+# writes its own shard, and the joined lattice at 20 federations x 5
+# replicates is roughly 20 MB -- regenerable from `experiments/run_groundtruth.py`
+# and far past what belongs in a repository. The five-federation
+# `groundtruth.csv` it supersedes stays, because the paper's figures are
+# rendered from committed numbers.
+results/shards/
+results/groundtruth_wide.csv
+
+# Exported policy-carrying model bundles.
+artifacts/
+*.log
+
+# Tooling
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+.mypy_cache/
+
+# The paper sources and any compiled PDFs are not part of this artefact.
+paper/

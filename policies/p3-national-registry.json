@@ -1,0 +1,28 @@
+{
+  "@context": "http://www.w3.org/ns/odrl.jsonld",
+  "@type": "Offer",
+  "uid": "urn:policy:p3-national-registry",
+  "assigner": "urn:party:national-registry-c",
+  "target": "urn:asset:registry-cohort-c",
+  "permission": [
+    {
+      "action": "aggregate",
+      "constraint": [
+        { "leftOperand": "purpose", "operator": "eq", "rightOperand": "research" },
+        { "leftOperand": "spatial", "operator": "eq", "rightOperand": "EU" }
+      ],
+      "duty": [
+        {
+          "action": "anonymize",
+          "constraint": [
+            { "leftOperand": "dpEpsilon", "operator": "lteq", "rightOperand": 1.0 }
+          ]
+        }
+      ]
+    }
+  ],
+  "prohibition": [
+    { "action": "distribute" },
+    { "action": "derive" }
+  ]
+}

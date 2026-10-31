@@ -1,0 +1,136 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "odrl-fl"
+version = "0.1.0"
+description = "Policy-carrying models: ODRL usage policies that compose through federated aggregation"
+license = { text = "MIT" }
+readme = "README.md"
+requires-python = ">=3.11"
+
+dependencies = [
+    "flwr[simulation]==1.33.0",
+    # Deliberately unpinned, having checked that it does not matter. Flower
+    # builds its own runtime environment for a run with `uv sync` from these
+    # dependencies, so the Flower path has trained under 2.14.1 while the
+    # in-process sweeps used 2.5.1 on the cluster and 2.13.0 on a Windows
+    # development machine -- three versions, which looked like it would make
+    # the two paths incomparable.
+    #
+    # It does not. All 5115 rows of `results/groundtruth.csv`, trained here
+    # under 2.13.0, are bit-identical to the trial=0 seeds 0-4 rows of the
+    # cluster's lattice trained under 2.5.1. The task is a small MLP over
+    # synthetic data with every seed fixed, and nothing in it reaches an
+    # operation whose result moved between those releases. Pinning an old
+    # version would therefore buy nothing and would break installs on Python
+    # 3.13, where no 2.5.1 wheel exists.
+    "torch",
+    "numpy",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "hypothesis>=6", "ruff"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["odrl_fl"]
+
+# --- Flower app ------------------------------------------------------------
+
+[tool.flwr.app]
+publisher = "anonymous"
+
+[tool.flwr.app.components]
+serverapp = "odrl_fl.server_app:app"
+clientapp = "odrl_fl.client_app:app"
+
+[tool.flwr.app.config]
+num-server-rounds = 5
+local-epochs = 1
+fraction-train = 1.0
+min-nodes = 2
+# Data heterogeneity dial: small alpha => pathological label skew, large => IID.
+alpha = 1.0
+seed = 0
+
+# What the federation must be permitted to do. Membership is chosen to satisfy
+# this before the first round -- see `odrl_fl/server_app.py`.
+#
+# `require-purpose` is what makes the requirement bite. Left empty, the request
+# names only actions, which nearly every contributor grants, so almost nobody
+# is excluded. Set it to a term from the purpose taxonomy (`research`,
+# `ds-cancer`, ...) to select against a real research aim. Broader purposes are
+# harder to satisfy: a grant covering all of `research` also covers
+# `ds-cancer`, but not the reverse.
+require-actions = "use,aggregate"
+require-purpose = ""
+
+# Evidence that the agreement's *preconditions* have been discharged, as
+# `action=reference` pairs. A precondition cannot be discharged by the run that
+# depends on it, so the server refuses to start without this -- see the gate in
+# `odrl_fl/duties.py`. Nothing validates that the reference is real; the point
+# is that a person has to assert it explicitly.
+#
+#     duty-evidence = "obtainConsent=IRB-2026-0142"
+duty-evidence = ""
+
+# Where the policy-carrying model is written: the weights alongside the
+# composed agreement, every contributor's declaration, and what remains owed.
+bundle-dir = "artifacts/model-bundle"
+
+# Re-ask every active node for its terms between rounds, and drop the ones
+# that have withdrawn, lapsed, or breached a duty. Costs one query round per
+# training round; turn it off only for a run short enough that consent
+# cannot plausibly change during it.
+recheck-consent = true
+
+
+# --- SuperLink connection --------------------------------------------------
+#
+# As of Flower 1.26 this is NOT configured here; it lives in the user-level
+# `~/.flwr/config.toml`. Running the Flower path needs one entry:
+#
+#     [superlink.odrl-local]
+#     address = "127.0.0.1:9093"
+#     insecure = true
+#
+# A *simulation* federation is the natural choice for this project, and is
+# configured below -- but it requires Ray, which publishes no Windows wheels
+# for Python 3.13, so on that platform the deployment engine is the only Flower
+# path. Sweeps use `odrl_fl.fedavg` either way (in-process, no transport); see
+# its module docstring for why there are two paths at all.
+
+# --- Simulation federation -------------------------------------------------
+#
+# Used on Linux, where Ray is available:
+#
+#     flwr run . local-sim
+#
+# `num-supernodes` is the size of the *population*, not of the admitted
+# consortium. The whole point of `PolicyAwareFedAvg` is that it declines to
+# train on some of the nodes that connected, so a federation whose population
+# equals the consortium would demonstrate nothing.
+
+[tool.flwr.federations]
+default = "local-sim"
+
+[tool.flwr.federations.local-sim]
+options.num-supernodes = 10
+
+[tool.flwr.federations.local-sim.options.backend]
+# One CPU per node, matching the Slurm allocation. A three-layer MLP gains
+# nothing from intra-op threading, and ten Ray actors each claiming every core
+# would contend for the whole node.
+client-resources.num-cpus = 1
+client-resources.num-gpus = 0.0
+
+# --- Tooling ---------------------------------------------------------------
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["slow: runs a full simulated federation (tens of seconds)"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"

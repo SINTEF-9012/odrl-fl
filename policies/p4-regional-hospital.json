@@ -1,0 +1,54 @@
+{
+  "@context": "http://www.w3.org/ns/odrl.jsonld",
+  "@type": "Offer",
+  "uid": "urn:policy:p4-regional-hospital",
+  "assigner": "urn:party:regional-hospital-d",
+  "target": "urn:asset:imaging-cohort-d",
+  "permission": [
+    {
+      "action": "use",
+      "constraint": [
+        {
+          "leftOperand": "purpose",
+          "operator": "eq",
+          "rightOperand": "research"
+        },
+        {
+          "leftOperand": "spatial",
+          "operator": "eq",
+          "rightOperand": "DE"
+        }
+      ]
+    },
+    {
+      "action": "aggregate",
+      "constraint": [
+        {
+          "leftOperand": "purpose",
+          "operator": "eq",
+          "rightOperand": "research"
+        },
+        {
+          "leftOperand": "spatial",
+          "operator": "eq",
+          "rightOperand": "DE"
+        }
+      ]
+    },
+    {
+      "action": "distribute",
+      "constraint": [
+        {
+          "leftOperand": "purpose",
+          "operator": "eq",
+          "rightOperand": "research"
+        },
+        {
+          "leftOperand": "spatial",
+          "operator": "eq",
+          "rightOperand": "DE"
+        }
+      ]
+    }
+  ]
+}

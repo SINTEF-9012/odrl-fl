@@ -1,0 +1,152 @@
+[
+  {
+    "id": "DUO:0000021",
+    "shorthand": "IRB",
+    "label": "ethics approval required",
+    "description": "This data use modifier indicates that the requestor must provide documentation of local IRB/ERB approval."
+  },
+  {
+    "id": "DUO:0000006",
+    "shorthand": "HMB",
+    "label": "health or medical or biomedical research",
+    "description": "This data use permission indicates that use is allowed for health/medical/biomedical purposes; does not include the study of population origins or ancestry."
+  },
+  {
+    "id": "DUO:0000019",
+    "shorthand": "PUB",
+    "label": "publication required",
+    "description": "This data use modifier indicates that requestor agrees to make results of studies using the data available to the larger scientific community."
+  },
+  {
+    "id": "DUO:0000026",
+    "shorthand": "US",
+    "label": "user specific restriction",
+    "description": "This data use modifier indicates that use is limited to use by approved users."
+  },
+  {
+    "id": "DUO:0000044",
+    "shorthand": "NPOA",
+    "label": "population origins or ancestry research prohibited",
+    "description": "This data use modifier indicates use for purposes of population, origin, or ancestry research is prohibited."
+  },
+  {
+    "id": "DUO:0000020",
+    "shorthand": "COL",
+    "label": "collaboration required",
+    "description": "This data use modifier indicates that the requestor must agree to collaboration with the primary study investigator(s)."
+  },
+  {
+    "id": "DUO:0000046",
+    "shorthand": "NCU",
+    "label": "non-commercial use only",
+    "description": "This data use modifier indicates that use of the data is limited to not-for-profit use."
+  },
+  {
+    "id": "DUO:0000018",
+    "shorthand": "NPUNCU",
+    "label": "not for profit, non commercial use only",
+    "description": "This data use modifier indicates that use of the data is limited to not-for-profit organizations and not-for-profit use, non-commercial use."
+  },
+  {
+    "id": "DUO:0000012",
+    "shorthand": "RS",
+    "label": "research specific restrictions",
+    "description": "This data use modifier indicates that use is limited to studies of a certain research type."
+  },
+  {
+    "id": "DUO:0000025",
+    "shorthand": "TS",
+    "label": "time limit on use",
+    "description": "This data use modifier indicates that use is approved for a specific number of months."
+  },
+  {
+    "id": "DUO:0000004",
+    "shorthand": "NRES",
+    "label": "no restriction",
+    "description": "This data use permission indicates there is no restriction on use."
+  },
+  {
+    "id": "DUO:0000045",
+    "shorthand": "NPU",
+    "label": "not for profit organisation use only",
+    "description": "This data use modifier indicates that use of the data is limited to not-for-profit organizations."
+  },
+  {
+    "id": "DUO:0000017",
+    "shorthand": "",
+    "label": "data use modifier",
+    "description": "Data use modifiers indicate additional conditions for use."
+  },
+  {
+    "id": "DUO:0000011",
+    "shorthand": "POA",
+    "label": "population origins or ancestry research only",
+    "description": "This data use permission indicates that use of the data is limited to the study of population origins or ancestry."
+  },
+  {
+    "id": "DUO:0000024",
+    "shorthand": "MOR",
+    "label": "publication moratorium",
+    "description": "This data use modifier indicates that requestor agrees not to publish results of studies until a specific date."
+  },
+  {
+    "id": "DUO:0000016",
+    "shorthand": "GSO",
+    "label": "genetic studies only",
+    "description": "This data use modifier indicates that use is limited to genetic studies only (i.e., studies that include genotype research alone or both genotype and phenotype research, but not phenotype research exclusively)"
+  },
+  {
+    "id": "DUO:0000029",
+    "shorthand": "RTN",
+    "label": "return to database or resource",
+    "description": "This data use modifier indicates that the requestor must return derived/enriched data to the database/resource."
+  },
+  {
+    "id": "DUO:0000043",
+    "shorthand": "CC",
+    "label": "clinical care use",
+    "description": "This data use modifier indicates that use is allowed for clinical use and care."
+  },
+  {
+    "id": "DUO:0000015",
+    "shorthand": "NMDS",
+    "label": "no general methods research",
+    "description": "This data use modifier indicates that use does not allow methods development research (e.g., development of software or algorithms)."
+  },
+  {
+    "id": "DUO:0000028",
+    "shorthand": "IS",
+    "label": "institution specific restriction",
+    "description": "This data use modifier indicates that use is limited to use within an approved institution."
+  },
+  {
+    "id": "DUO:0000022",
+    "shorthand": "GS",
+    "label": "geographical restriction",
+    "description": "This data use modifier indicates that use is limited to within a specific geographic region."
+  },
+  {
+    "id": "DUO:0000007",
+    "shorthand": "DS",
+    "label": "disease specific research",
+    "description": "This data use permission indicates that use is allowed provided it is related to the specified disease."
+  },
+  {
+    "id": "DUO:0000001",
+    "shorthand": "",
+    "label": "data use permission",
+    "description": "A data item that is used to indicate consent permissions for datasets and/or materials, and relates to the purposes for which datasets and/or material might be removed, stored or used."
+  },
+  {
+    "id": "DUO:0000042",
+    "shorthand": "GRU",
+    "label": "general research use",
+    "description": "This data use permission indicates that use is allowed for general research use for any research purpose."
+  },
+  {
+    "id": "DUO:0000027",
+    "shorthand": "PS",
+    "label": "project specific restriction",
+    "description": "This data use modifier indicates that use is limited to use within an approved project."
+  }
+]

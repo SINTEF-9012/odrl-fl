@@ -1,0 +1,66 @@
+{
+  "@context": "http://www.w3.org/ns/odrl.jsonld",
+  "@type": "Offer",
+  "uid": "urn:policy:p5-startup",
+  "assigner": "urn:party:startup-e",
+  "target": "urn:asset:imaging-cohort-e",
+  "permission": [
+    {
+      "action": "use",
+      "constraint": [
+        {
+          "leftOperand": "purpose",
+          "operator": "isAnyOf",
+          "rightOperand": [
+            "research",
+            "commercial"
+          ]
+        }
+      ]
+    },
+    {
+      "action": "aggregate",
+      "constraint": [
+        {
+          "leftOperand": "purpose",
+          "operator": "isAnyOf",
+          "rightOperand": [
+            "research",
+            "commercial"
+          ]
+        }
+      ]
+    },
+    {
+      "action": "derive",
+      "constraint": [
+        {
+          "leftOperand": "purpose",
+          "operator": "isAnyOf",
+          "rightOperand": [
+            "research",
+            "commercial"
+          ]
+        }
+      ]
+    },
+    {
+      "action": "distribute",
+      "constraint": [
+        {
+          "leftOperand": "purpose",
+          "operator": "isAnyOf",
+          "rightOperand": [
+            "research",
+            "commercial"
+          ]
+        }
+      ]
+    }
+  ],
+  "obligation": [
+    {
+      "action": "compensate"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+seed,aware_size,aware_cindex,aware_feasible,blind_size,blind_cindex,blind_feasible,blind_deployable,everyone_cindex
+0,12,0.6586,1,12,0.6872,0,0.0,0.6859
+1,15,0.6903,1,15,0.6903,1,0.6903,0.6859
+2,12,0.6671,1,12,0.6872,0,0.0,0.6859
+3,13,0.6644,1,13,0.6889,0,0.0,0.6859
+4,12,0.6861,1,12,0.6872,0,0.0,0.6859
